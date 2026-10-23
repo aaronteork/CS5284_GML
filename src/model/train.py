@@ -14,6 +14,7 @@ from pathlib import Path
 import numpy as np
 import torch
 import torch.nn.functional as F
+from tqdm.auto import tqdm
 
 from src.data import RoadAccidentDataset, download_centrality
 from src.eval import evaluate
@@ -45,7 +46,7 @@ class Config:
     num_layers: int = 2
     dropout: float = 0.0
     eval_every: int = 5
-    select_protocol: str = "balanced"       # protocol whose validation score picks the best epoch
+    select_protocol: str = "all"            # full-network validation picks the best epoch
     seeds: list = field(default_factory=lambda: [0, 1, 2])
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
     run_name: str = ""
@@ -118,9 +119,12 @@ def train_seed(cfg, seed, dataset):
     weights_path.parent.mkdir(parents=True, exist_ok=True)
     best_score, best_epoch = -float("inf"), 0
 
-    for epoch in range(1, cfg.epochs + 1):
+    progress = tqdm(range(1, cfg.epochs + 1), desc=f"{cfg.state} {cfg.model} {cfg.task} seed {seed}",
+                    unit="epoch", dynamic_ncols=True)
+    for epoch in progress:
         start = time.time()
         loss = train_epoch(model, optimizer, dataset, train_months, cfg, rng)
+        progress.set_postfix(loss=f"{loss:.4f}", refresh=False)
         if epoch % cfg.eval_every and epoch != cfg.epochs:
             continue
         valid = evaluate(model, dataset, valid_months, cfg.task, cfg.device)
@@ -130,7 +134,7 @@ def train_seed(cfg, seed, dataset):
             torch.save({"state_dict": model.state_dict(), "config": asdict(cfg), "seed": seed, "epoch": epoch},
                        weights_path)
         key = "AUROC" if cfg.task == "classification" else "MAE"
-        print(f"[seed {seed}] epoch {epoch:3d} | loss {loss:.4f} | "
+        tqdm.write(f"[seed {seed}] epoch {epoch:3d} | loss {loss:.4f} | "
               f"valid {key} ({cfg.select_protocol}) {valid[cfg.select_protocol][key]:.4f} | "
               f"best epoch {best_epoch} | {time.time() - start:.1f}s")
 

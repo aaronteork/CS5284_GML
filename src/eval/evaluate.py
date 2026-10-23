@@ -10,8 +10,8 @@ def balanced_road_ids(y, year, month):
     """Every accident road plus an equal number of accident-free roads.
 
     The sample is seeded by the month, so every model is scored on the same roads.
-    This approximates the paper's evaluation, which pairs accident roads with sampled
-    accident-free ones rather than scoring the whole network.
+    This is a supplementary diagnostic; the paper's filtered evaluation population
+    is different from both our balanced sample and our full-network population.
     """
     positive = torch.nonzero(y > 0).squeeze(1).cpu().numpy()
     negative = torch.nonzero(y == 0).squeeze(1).cpu().numpy()
@@ -32,19 +32,20 @@ def evaluate(model, dataset, months, task, device, return_predictions=False):
     """Score a model on `months` under both protocols.
 
     - "all": every road in every month, i.e. how the model would be used.
-    - "balanced": accident roads plus an equal sample of accident-free roads, for
-      comparison with the paper's numbers.
+    - "balanced": accident roads plus an equal sample of accident-free roads,
+      reported as a supplementary diagnostic.
 
     Classification metrics are always reported (a predicted count is also a risk
     score); regression metrics are added for the regression task.
+
+    Zero-accident months contribute to "all" metrics and prediction exports.
+    They have no balanced examples, since there are no positives to balance.
     """
     collected = {p: {"pred": [], "y": [], "group": []} for p in PROTOCOLS}
     all_preds, all_y, evaluated_months = [], [], []
 
     for group, (year, month) in enumerate(months):
         data = dataset.monthly(year, month).to(device)
-        if data.y.sum() == 0:
-            continue
         pred, y = predict(model, data, task).cpu(), data.y.cpu()
 
         ids = balanced_road_ids(y, year, month)
