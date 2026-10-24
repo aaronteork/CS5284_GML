@@ -104,6 +104,13 @@ Training loss uses sampled roads, whereas validation covers the selected
 evaluation population, so their magnitudes are not directly comparable. Rerunning
 a seed resets its history and curve, along with its usual training outputs.
 
-Data, outputs, environments and caches are ignored by Git. Neither parent branch
-contained saved final AUROC/MAE results; the merged pipeline must be trained before
-claiming improvements. The old feature branch remains available for comparison.
+Completed Delaware reports are included under `results/` for all eight model,
+task and Node2Vec configurations, each with seeds 0/1/2 and 100 epochs. They
+include metrics, provenance and training histories/curves imported from the Drive
+export. These modified-reproduction results are not directly comparable to the
+paper's scores; see the differences document.
+
+Git tracks only the selected JSON, CSV and PNG reports in `results/`. Data,
+prediction tensors, checkpoints, environments, caches and original exports stay
+outside Git. Use `notebooks/train_colab.ipynb` for training. The old feature
+branch remains available for comparison.
