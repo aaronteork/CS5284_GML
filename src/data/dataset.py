@@ -1,5 +1,6 @@
 import json
 import shutil
+import urllib.error
 import urllib.request
 import zipfile
 from dataclasses import dataclass
@@ -78,7 +79,8 @@ def download_centrality(state, data_dir=DATA_DIR):
 
 def _download_from_dataverse(filename, dest):
     url = f"{DATAVERSE_URL}/api/datasets/:persistentId/?persistentId={DATAVERSE_DOI}"
-    with urllib.request.urlopen(url) as response:
+    print(f"Looking up {filename} on Harvard Dataverse...", flush=True)
+    with _open_dataverse(url, filename, dest) as response:
         files = json.load(response)["data"]["latestVersion"]["files"]
     file_ids = {f["dataFile"]["filename"]: f["dataFile"]["id"] for f in files}
     if filename not in file_ids:
@@ -87,9 +89,24 @@ def _download_from_dataverse(filename, dest):
     file_url = f"{DATAVERSE_URL}/api/access/datafile/{file_ids[filename]}"
     tmp = dest.with_suffix(".part")
     print(f"Downloading {filename}...")
-    with urllib.request.urlopen(file_url) as response, open(tmp, "wb") as f:
+    with _open_dataverse(file_url, filename, dest) as response, open(tmp, "wb") as f:
         shutil.copyfileobj(response, f, length=1 << 20)
     tmp.rename(dest)
+
+
+def _open_dataverse(url, filename, dest):
+    try:
+        return urllib.request.urlopen(url, timeout=60)
+    except urllib.error.HTTPError as exc:
+        if exc.code == 403:
+            raise RuntimeError(
+                f"Harvard Dataverse returned HTTP 403 for {filename}. "
+                "Download the ZIP in your browser from https://doi.org/10.7910/DVN/V71K5R "
+                f"and place it at {dest}, then rerun. In the Colab notebook, this maps to "
+                f"My Drive/cs5284_project/data/{filename}. "
+                "The loader will extract the local ZIP without contacting Dataverse."
+            ) from exc
+        raise
 
 
 @dataclass

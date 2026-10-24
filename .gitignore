@@ -1,0 +1,21 @@
+# Local environments
+/.venv/
+/venv/
+
+# Downloaded data, embeddings, model checkpoints and generated results
+/data/
+/weights/
+/results/
+
+# Python and notebook caches
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local logs and operating-system files
+*.log
+.DS_Store
+Thumbs.db
