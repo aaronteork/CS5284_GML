@@ -2,8 +2,9 @@
 
 This branch integrates feature/baseline (43025f1) and baseline-fw (4f926d1).
 It is one merged pipeline, with a controlled with/without-Node2Vec ablation.
-These are methodological differences, not demonstrated accuracy improvements.
-No final multi-seed reproduction scores have been verified in this branch.
+The methodological differences below prevent direct accuracy comparisons with
+the paper. Completed three-seed Delaware reports are now included in `results/`;
+they document the merged pipeline rather than a strict reproduction.
 
 ## What remains aligned
 
@@ -76,6 +77,8 @@ No final multi-seed reproduction scores have been verified in this branch.
   to model architecture. Clipping can also introduce ties in regression risk scores.
 - One checkpoint is selected per task by all-road validation AUROC or MAE;
   auxiliary metrics come from that checkpoint, rather than each choosing an epoch.
+  Selection is separate for each configuration and seed, among evaluated epochs;
+  validation runs every five epochs and at the final epoch. There is no early stopping.
 - sklearn's AUROC correctly handles ties, unlike baseline-fw's rank implementation.
 - Additional diagnostics include pooled AUROC, AP labelled PR-AUC, threshold
   precision/recall, monthly top-1% precision/recall, MSE and positive/negative MAE.
@@ -99,6 +102,25 @@ No final multi-seed reproduction scores have been verified in this branch.
 
 We cover MLP and GraphSAGE on DE/MD, not all eight states or the paper's other
 architectures, multitask/transfer learning, or repeated hyperparameter search.
+The Colab notebook separates training into four model/task cells, each covering
+both Node2Vec settings and three seeds: 24 training runs per state.
+
+The committed Delaware export contains all eight configurations, each with three
+completed seeds (0/1/2) and histories covering epochs 1-100: 88 JSON/CSV/PNG reports.
+All report 49,023 nodes, 65,252 physical-road targets, and 48/60/57 available
+train/validation/test months. The histories, metrics, curves and metadata were
+checked for completeness; full training was not independently rerun locally.
+No Maryland results are included yet. Prediction tensors and checkpoints are
+excluded from Git; training uses `notebooks/train_colab.ipynb`.
+
+All saved DE runs identify source commit `526b30e` and set `git_dirty: true`.
+The exact uncommitted changes in that training checkout were not captured by
+the metadata, so the commit alone does not establish an exact source snapshot.
+The three seeds vary model training while holding the embedding seed fixed;
+their standard deviation therefore does not measure embedding variability.
+Comparisons with the paper remain qualified by the feature, embedding, target
+and evaluation-population differences above, especially for full-network MAE.
+
 The baseline-fw notebook saved preprocessing timings (DE embeddings 4 s, MD 27 s)
 but no final AUROC/MAE: its training/result cells were unexecuted. Those timings
 are not benchmarks for the merged implementation or the paper's original setup.
