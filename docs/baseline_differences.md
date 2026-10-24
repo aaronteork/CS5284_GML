@@ -87,6 +87,13 @@ No final multi-seed reproduction scores have been verified in this branch.
   combined means/stds are written after every completed seed. Embedding variability
   is not included in the model-seed standard deviation.
 - Coordinates and target-unit metadata accompany prediction exports for the map.
+- Per-seed CSV histories persist training loss after each completed epoch and
+  validation AUROC/MAE at evaluation checks (default every 5 epochs plus final).
+  Separate curve panels mark the best validation epoch; test metrics are never
+  used for checkpoint selection or plotted as an epoch-by-epoch tuning curve.
+  Run metadata records the configuration, splits, embedding provenance, package
+  versions and Git commit/dirty flag. These are reporting additions, not changes
+  to the training objective or evaluation schedule.
 
 ## Scope and evidence
 

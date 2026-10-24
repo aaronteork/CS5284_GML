@@ -30,7 +30,9 @@ accident months. Pooled/balanced and top-risk metrics provide extra diagnostics.
    the single `requirements.txt`; no automatic unit tests are run.
 4. The embedding cell uses the GPU. Initial structural caching computes
    approximate betweenness on CPU once and can take several minutes.
-5. The training cell runs eight configurations, each for 100 epochs and 3 seeds.
+5. Four training cells cover MLP/GraphSAGE and classification/regression. Each
+   runs both Node2Vec settings for 100 epochs and 3 seeds (6 runs per cell,
+   24 runs per state).
    Change `STATE` to `MD` and rerun setup onward to train Maryland.
 
 `data/`, `weights/` and `results/` persist in
@@ -73,7 +75,9 @@ sparse duplicate averaging, cache invalidation, embedding provenance and reverse
 deduplication, and identical shared inputs in the Node2Vec ablation. Evaluation
 checks cover monthly AUROC weighting, accident-free months, regression clipping
 and geographic prediction exports. Tests use tiny synthetic data, with no dataset
-download or full training run. Colab does not run them automatically.
+download or full training run. Training-history tests also verify best-checkpoint
+selection, curve generation and preservation of history after interruption.
+Colab does not run them automatically.
 
 ## Outputs
 
@@ -81,9 +85,24 @@ download or full training run. Colab does not run them automatically.
 - `data/embeddings/node2vec_merged/<state>_128.npy` and `.json`: embeddings/provenance.
 - `weights/<state>_<model>_<task>_<n2v|no_n2v>/seed<k>.pt`: best validation checkpoint.
 - `results/<run>/seed<k>_metrics.json`: each completed seed's metrics/configuration.
+- `results/<run>/seed<k>_history.csv`: epoch, training loss, validation AUROC/MAE,
+  epoch/cumulative seconds, best-checkpoint flag and best epoch. Appended after
+  every completed epoch; validation fields are blank on unevaluated epochs.
+- `results/<run>/seed<k>_history.png`: separate training-loss and validation-metric
+  panels marking the best epoch; refreshed at the first epoch and validation checks.
+- `results/<run>/run_metadata.json`: configuration, data coverage, data splits,
+  embedding metadata, package versions, Git commit and working-tree dirty flag,
+  saved before training. Provenance also accompanies final metrics.
 - `results/<run>/metrics.json`: mean/std and completion status for all seeds.
 - `results/<run>/seed<k>_test_predictions.pt`: months, predictions, actual counts,
   road endpoint indices, node longitude/latitude and target-unit metadata.
+
+Validation runs every 5 epochs and at the final epoch by default. The best
+evaluated epoch is selected separately for each seed using validation AUROC
+(classification) or MAE (regression); only its checkpoint is evaluated on test.
+Training loss uses sampled roads, whereas validation covers the selected
+evaluation population, so their magnitudes are not directly comparable. Rerunning
+a seed resets its history and curve, along with its usual training outputs.
 
 Data, outputs, environments and caches are ignored by Git. Neither parent branch
 contained saved final AUROC/MAE results; the merged pipeline must be trained before

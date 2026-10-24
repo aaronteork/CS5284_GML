@@ -6,7 +6,9 @@ Best-on-validation weights go to `weights/<run>/seed<k>.pt`; metrics and test
 predictions go to `results/<run>/`.
 """
 import argparse
+import csv
 import json
+import subprocess
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -17,7 +19,7 @@ import torch.nn.functional as F
 from tqdm.auto import tqdm
 
 from src.data import RoadAccidentDataset
-from src.data.node2vec import generate_node2vec
+from src.data.node2vec import generate_node2vec, node2vec_path
 from src.eval import evaluate
 from src.model.models import build_model
 
@@ -72,6 +74,63 @@ def selection_score(results, cfg):
     return metrics["AUROC"] if cfg.task == "classification" else -metrics["MAE"]
 
 
+HISTORY_COLUMNS = ["epoch", "train_loss", "valid_auroc", "valid_mae",
+                   "epoch_seconds", "elapsed_seconds", "is_best", "best_epoch"]
+
+
+def save_curves(history_path, cfg):
+    """Plot recorded values; blank validation entries are unevaluated epochs."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    with open(history_path, newline="", encoding="utf-8") as stream:
+        rows = list(csv.DictReader(stream))
+    if not rows:
+        return
+    metric = "valid_auroc" if cfg.task == "classification" else "valid_mae"
+    evaluated = [row for row in rows if row[metric]]
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+    try:
+        axes[0].plot([int(r["epoch"]) for r in rows], [float(r["train_loss"]) for r in rows])
+        axes[0].set_ylabel("Training BCE loss" if cfg.task == "classification" else "Training MAE loss")
+        if evaluated:
+            axes[1].plot([int(r["epoch"]) for r in evaluated],
+                         [float(r[metric]) for r in evaluated], marker="o")
+        axes[1].set_ylabel(f"Validation {'AUROC' if cfg.task == 'classification' else 'MAE'} ({cfg.select_protocol})")
+        best = int(rows[-1]["best_epoch"])
+        for ax in axes:
+            ax.set_xlabel("Epoch")
+            if best:
+                ax.axvline(best, linestyle="--", color="tab:red", label=f"Best epoch {best}")
+                ax.legend()
+            ax.grid(alpha=0.2)
+        fig.suptitle(f"{cfg.run_name} / {history_path.stem}")
+        fig.tight_layout()
+        fig.savefig(history_path.with_suffix(".png"), dpi=150)
+    finally:
+        plt.close(fig)
+
+
+def run_provenance(cfg):
+    def git(*args):
+        try:
+            return subprocess.check_output(["git", *args], cwd=ROOT, text=True,
+                                           stderr=subprocess.DEVNULL, timeout=10).strip()
+        except (OSError, subprocess.SubprocessError):
+            return None
+
+    status = git("status", "--porcelain")
+    embedding_meta = node2vec_path(cfg.state).with_suffix(".json")
+    return {"git_commit": git("rev-parse", "HEAD"),
+            "git_dirty": None if status is None else bool(status),
+            "torch_version": str(torch.__version__), "numpy_version": np.__version__,
+            "splits": {name: list(years) for name, years in
+                       zip(("train", "valid", "test"), SPLITS[cfg.state])},
+            "embedding": json.loads(embedding_meta.read_text(encoding="utf-8"))
+                if cfg.use_node2vec and embedding_meta.exists() else None}
+
+
 def train_epoch(model, optimizer, dataset, months, cfg, rng):
     model.train()
     total_loss, total_roads = 0.0, 0
@@ -114,6 +173,13 @@ def train_seed(cfg, seed, dataset):
     weights_path = WEIGHTS_DIR / cfg.run_name / f"seed{seed}.pt"
     weights_path.parent.mkdir(parents=True, exist_ok=True)
     best_score, best_epoch = -float("inf"), 0
+    results_dir = RESULTS_DIR / cfg.run_name
+    results_dir.mkdir(parents=True, exist_ok=True)
+    history_path = results_dir / f"seed{seed}_history.csv"
+    with open(history_path, "w", newline="", encoding="utf-8") as stream:
+        csv.DictWriter(stream, fieldnames=HISTORY_COLUMNS).writeheader()
+    history_path.with_suffix(".png").unlink(missing_ok=True)
+    training_start = time.perf_counter()
 
     progress = tqdm(range(1, cfg.epochs + 1), desc=f"{cfg.state} {cfg.model} {cfg.task} seed {seed}",
                     unit="epoch", dynamic_ncols=True)
@@ -121,20 +187,29 @@ def train_seed(cfg, seed, dataset):
         start = time.time()
         loss = train_epoch(model, optimizer, dataset, train_months, cfg, rng)
         progress.set_postfix(loss=f"{loss:.4f}", refresh=False)
-        if epoch % cfg.eval_every and epoch != cfg.epochs:
-            continue
-        valid = evaluate(model, dataset, valid_months, cfg.task, cfg.device)
-        score = selection_score(valid, cfg)
-        if not np.isfinite(score):
-            raise ValueError("Validation selection metric is undefined; check split labels")
-        if score > best_score:
-            best_score, best_epoch = score, epoch
-            torch.save({"state_dict": model.state_dict(), "config": asdict(cfg), "seed": seed, "epoch": epoch},
-                       weights_path)
-        key = "AUROC" if cfg.task == "classification" else "MAE"
-        tqdm.write(f"[seed {seed}] epoch {epoch:3d} | loss {loss:.4f} | "
-              f"valid {key} ({cfg.select_protocol}) {valid[cfg.select_protocol][key]:.4f} | "
-              f"best epoch {best_epoch} | {time.time() - start:.1f}s")
+        valid, is_best = None, False
+        if epoch % cfg.eval_every == 0 or epoch == cfg.epochs:
+            valid = evaluate(model, dataset, valid_months, cfg.task, cfg.device)
+            score = selection_score(valid, cfg)
+            if not np.isfinite(score):
+                raise ValueError("Validation selection metric is undefined; check split labels")
+            if score > best_score:
+                best_score, best_epoch, is_best = score, epoch, True
+                torch.save({"state_dict": model.state_dict(), "config": asdict(cfg), "seed": seed, "epoch": epoch},
+                           weights_path)
+            key = "AUROC" if cfg.task == "classification" else "MAE"
+            tqdm.write(f"[seed {seed}] epoch {epoch:3d} | loss {loss:.4f} | "
+                  f"valid {key} ({cfg.select_protocol}) {valid[cfg.select_protocol][key]:.4f} | "
+                  f"best epoch {best_epoch} | {time.time() - start:.1f}s")
+        metrics = valid[cfg.select_protocol] if valid is not None else {}
+        with open(history_path, "a", newline="", encoding="utf-8") as stream:
+            csv.DictWriter(stream, fieldnames=HISTORY_COLUMNS).writerow({
+                "epoch": epoch, "train_loss": loss, "valid_auroc": metrics.get("AUROC", ""),
+                "valid_mae": metrics.get("MAE", ""), "epoch_seconds": time.time() - start,
+                "elapsed_seconds": time.perf_counter() - training_start,
+                "is_best": is_best, "best_epoch": best_epoch})
+        if valid is not None or epoch == 1:
+            save_curves(history_path, cfg)
 
     model.load_state_dict(torch.load(weights_path, map_location=cfg.device)["state_dict"])
     valid = evaluate(model, dataset, valid_months, cfg.task, cfg.device)
@@ -169,23 +244,26 @@ def run(cfg):
     print(f"Data coverage: {data_summary}", flush=True)
     results_dir = RESULTS_DIR / cfg.run_name
     results_dir.mkdir(parents=True, exist_ok=True)
+    provenance = run_provenance(cfg)
+    with open(results_dir / "run_metadata.json", "w", encoding="utf-8") as stream:
+        json.dump({"config": asdict(cfg), "data": data_summary, "provenance": provenance}, stream, indent=2)
     runs = []
     for seed in cfg.seeds:
         result = train_seed(cfg, seed, dataset)
         runs.append(result)
         with open(results_dir / f"seed{seed}_metrics.json", "w") as f:
-            json.dump({"config": asdict(cfg), "data": data_summary, **result}, f, indent=2)
+            json.dump({"config": asdict(cfg), "data": data_summary, "provenance": provenance, **result}, f, indent=2)
         # Persist completed seeds even if a later Colab run is interrupted.
         with open(results_dir / "metrics.json", "w") as f:
             json.dump({"config": asdict(cfg), "data": data_summary, "summary": summarise(runs), "runs": runs,
-                       "complete": len(runs) == len(cfg.seeds)}, f, indent=2)
+                       "provenance": provenance, "complete": len(runs) == len(cfg.seeds)}, f, indent=2)
     summary = summarise(runs)
 
     results_dir = RESULTS_DIR / cfg.run_name
     results_dir.mkdir(parents=True, exist_ok=True)
     with open(results_dir / "metrics.json", "w") as f:
         json.dump({"config": asdict(cfg), "data": data_summary, "summary": summary,
-                   "runs": runs, "complete": True}, f, indent=2)
+                   "runs": runs, "provenance": provenance, "complete": True}, f, indent=2)
 
     print(f"\n{cfg.run_name}: test results over seeds {cfg.seeds}")
     for protocol, metrics in summary["test"].items():
