@@ -26,7 +26,23 @@ class ConstantModel(torch.nn.Module):
         return torch.ones_like(data.y)
 
 
+class NegativeCountModel(torch.nn.Module):
+    def forward(self, data):
+        return torch.tensor([-2., 3.])
+
+
 class EvaluationTests(unittest.TestCase):
+    def test_regression_exports_clip_negative_counts_and_preserve_coordinates(self):
+        dataset = Dataset()
+        dataset.node_coordinates = torch.tensor([[-75., 38.], [-74., 39.], [-73., 40.]])
+        results, predictions = evaluate(NegativeCountModel(), dataset, [(2020, 1)],
+                                        "regression", "cpu", return_predictions=True)
+        torch.testing.assert_close(predictions["pred"], torch.tensor([[0., 3.]]))
+        torch.testing.assert_close(predictions["node_coordinates"], dataset.node_coordinates)
+        torch.testing.assert_close(predictions["road_index"], dataset.edge_index)
+        self.assertEqual(predictions["target_unit"], "physical")
+        self.assertEqual(results["all"]["MAE"], 2.)
+
     def test_auroc_uses_monthly_ranking_and_positive_count_weights(self):
         metrics = classification_metrics([0.2, 0.1, 0.8, 0.7, 0.9], [1, 0, 1, 1, 0],
                                          groups=[0, 0, 1, 1, 1])

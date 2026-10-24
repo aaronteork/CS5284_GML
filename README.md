@@ -59,6 +59,22 @@ Generation metadata identifies the implementation and parameters; caches from
 another backend are rejected rather than silently reused. New embeddings live
 under `data/embeddings/node2vec_merged/`; older original embeddings are preserved.
 
+## Tests
+
+Run the CPU regression tests locally after installing the requirements:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+The suite covers training-only weather normalization, missing-value indicators,
+traffic carry-forward without future reports, physical-road label aggregation,
+sparse duplicate averaging, cache invalidation, embedding provenance and reverse-edge
+deduplication, and identical shared inputs in the Node2Vec ablation. Evaluation
+checks cover monthly AUROC weighting, accident-free months, regression clipping
+and geographic prediction exports. Tests use tiny synthetic data, with no dataset
+download or full training run. Colab does not run them automatically.
+
 ## Outputs
 
 - `data/<state>/cache/`: weather, coordinates, degree and betweenness caches.
