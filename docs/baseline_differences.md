@@ -1,40 +1,97 @@
-# Baseline: differences from the paper
+# Merged baseline: differences from the paper
 
-Comparison of our baseline (`src/`) with Nippani et al. (NeurIPS 2023) and its official code ([ML4RoadSafety](https://github.com/VirtuosoResearch/ML4RoadSafety)).
+This branch integrates feature/baseline (43025f1) and baseline-fw (4f926d1).
+It is one merged pipeline, with a controlled with/without-Node2Vec ablation.
+These are methodological differences, not demonstrated accuracy improvements.
+No final multi-seed reproduction scores have been verified in this branch.
 
-Matching the paper: train/validation/test years (Table 7), intersection features (centrality + weather for the MLP), road features (24 road-type flags + length), weather filling and training-year normalisation, the GraphSAGE layer (edge features in messages, mean with self-loop, L2-normalised), the 2-layer predictor on both endpoints plus road features, 1:1 sampling of accident-free roads during training, skipping training months with fewer than 10 accident roads, Adam, learning rate 0.001, 100 epochs, hidden size 256, dropout 0, and validation every 5 epochs.
+## What remains aligned
 
-**Types**
+- Train/validation/test years from Table 7, for Delaware and Maryland.
+- Two-layer, width-256 edge-aware GraphSAGE and per-road endpoint predictor;
+  the MLP uses the predictor without a learned graph encoder.
+- Adam, learning rate 0.001, 100 epochs, no dropout, validation every five epochs.
+- 1:1 positive/negative training sampling; skip training months with fewer than
+  ten accident roads. Each seed starts from a fresh encoder and predictor.
+- Primary AUROC is computed per month and weighted by positive-road count.
+  Pooled MAE is equivalent to sample-count-weighted monthly MAE when examples match.
 
-- **Bug fix**: the paper's code does something unintended; we do what the paper describes.
-- **Implementation choice**: a deliberate difference in how something is done.
-- **Improvement**: an intentional change to improve predictions, reported as a departure from strict replication.
-- **Evaluation**: a difference in how results are scored or reported.
-- **Not done yet**: part of the replication that's still outstanding.
-- **Scope**: what we chose to cover.
+## Combined feature and embedding changes
 
-| # | Area | Paper / official code | Ours | Type | Explanation |
-| --- | --- | --- | --- | --- | --- |
-| 1 | Road features | Looked up with `edge_attr[perm]`, a position in the month's accident list | Looked up by the road's ID | Bug fix | The paper's code gives each road the features of an unrelated road, so its road features are effectively noise. |
-| 2 | Sampling accident-free roads | Excludes any road whose two endpoints both appear in that month's accident roads | Any road with no accident that month | Bug fix | The endpoint-based filter can exclude truly accident-free roads. This changes the evaluation population; the size and direction of its effect on AUROC require measurement. |
-| 3 | Seeds | Only the predictor is reset between runs; the GNN keeps its trained weights | A fresh model for every seed | Bug fix | The paper's later seeds start from an already-trained encoder, so they aren't independent runs. |
-| 4 | Unit of prediction | Directed edges (a two-way road is two edges) | Physical roads (two directions merged) | Implementation choice | Both directions share one target and their accident counts are summed; message passing remains directed. This avoids treating the reverse direction as accident-free if labels are direction-insensitive, but that label assumption still needs validation. |
-| 5 | Month order | Calendar order every epoch | Shuffled every epoch | Implementation choice | Shuffling avoids the model drifting towards whichever months it saw last. |
-| 6 | Centrality features | Used raw (degree around 2–6, betweenness around 0.0001) | Standardised per column | Implementation choice | Putting features on a common scale makes the MLP easier to train and shouldn't change what it can learn. |
-| 7 | Traffic volume | Enabled in the example script | Off by default (`--use-traffic-volume` to enable) | Implementation choice | It's missing for over 98% of roads, so we leave it out unless a run shows it helps. |
-| 8 | Regression output | Raw predictions, which can be negative | Clipped at 0 when evaluating | Improvement | Intentional nonnegative-count post-processing: `max(0, prediction)`. For nonnegative targets this cannot increase MAE or MSE. Applied during validation, test scoring and prediction export; training still uses raw outputs. Clipped scores are a departure from strict replication, and any gain must not be attributed solely to the model. |
-| 9 | Batching within a month | Mini-batches of 32,768 accident roads | One step per month | Implementation choice | The batching distinction matters when a month exceeds 32,768 accident roads. Equivalence depends on monthly label counts and the changed prediction unit; verify these in the data audit. |
-| 10 | Node2Vec training | `karateclub` (gensim CBOW, hierarchical softmax) | Original `Node2Vec.fit`, `BiasedRandomWalker.do_walk` and gensim training; parallel walk dispatch by default | Implementation choice | Unchanged walk counts/length, p/q, dimensions and training settings. Fixed 128-node chunks use seeds derived from the run seed and chunk index; results are collected in node order. Walk samples differ from the original serial RNG sequence. Worker count, chunk size and seed policy are recorded in the embedding JSON. Automatic walk workers respect available CPUs (up to 8); `--walk-workers 1` restores original serial execution. The custom skip-gram replacement remains removed. |
-| 11 | Best epoch | Chosen separately for each metric | One epoch (best validation AUROC or MAE) for all metrics | Evaluation | Auxiliary metrics describe the same checkpoint selected for the primary task metric, rather than each metric selecting its own validation epoch. |
-| 12 | Combining months | Monthly classification metrics weighted by positive-edge count; monthly regression metrics weighted by total evaluated-edge count | AUROC averaged monthly with positive-road weights; MAE pooled with equivalent sample weighting; pooled AUROC also reported | Evaluation | Primary AUROC now matches the original aggregation. MAE aggregation is equivalent when evaluated examples and predictions match. Other classification metrics remain pooled; top-risk precision/recall remain monthly. |
-| 13 | Roads scored at test time | Accident roads plus all negatives left after the biased filter in row 2 | `all`: every road; `balanced`: accident roads plus an equal random sample | Evaluation | `all` reflects real use and is the closer match for MAE; `balanced` is easier to compare across models. |
-| 14 | Model selection | Monthly scoring on accident edges and the loader's filtered negative edges | `all` validation scores by default (`balanced` is supplementary) | Evaluation | Neither current protocol exactly matches the original evaluation population. Changing to `all` alone does not establish a like-for-like comparison. |
-| 15 | Metrics | AUROC, MAE, plus F1, average precision, precision and recall at 0.5 | AUROC, average precision labelled PR-AUC, precision/recall at 0.5, monthly top-1% precision/recall, pooled AUROC, MSE and split MAE; no F1 | Evaluation | PR-AUC here is average precision, already present as AP in the original code, rather than an additional distinct metric. Top-risk and split-error metrics provide extra diagnostics. F1 is currently omitted. |
-| 16 | Node2Vec embeddings | Used as GraphSAGE's intersection features | Original backend wired up; full-state generation and validation still required | Not done yet | Generate original embeddings and their provenance files before running the GraphSAGE notebook cells. |
-| 17 | Full runs | 100 epochs × 3 seeds per model and state | Full runs configured; completion not verified in this checkout | Not done yet | The notebook runs a separate smoke test before the 100-epoch, three-seed experiments. Verify saved full-run artifacts (including any on Drive) before reporting replication results. |
-| 18 | Hyperparameters | Grid search over layers, width, learning rate and epochs | The paper's final values, no search | Scope | Re-tuning isn't needed to reproduce the paper's reported configuration. |
-| 19 | States | Eight US states | Delaware and Maryland supported; Colab starts with Delaware | Scope | This is a smaller-state replication; findings cannot establish performance across all eight states. |
-| 20 | Evaluation month eligibility | Skips months with fewer than 10 accident edges | Includes every available validation/test month, including zero-accident months | Evaluation | Zero-accident months contribute to full-network MAE and exports. AUROC excludes single-class months; balanced evaluation has no examples in zero-accident months. Training still skips months with fewer than 10 accident roads. |
-| 21 | Model coverage | Includes other GNNs, spatiotemporal architectures, multitask and transfer-learning experiments | MLP and single-state GraphSAGE only | Scope | Replicates the two baselines promised in the proposal; does not reproduce the complete experimental suite. |
+- **Custom GPU embeddings:** the active implementation is adapted from
+  baseline-fw's PyTorch Node2Vec-style trainer, not karateclub. It uses 128
+  dimensions, uniform unweighted walks (p=q=1), 20 nodes per walk, 10 walks per
+  node, forward context window 5, one uniformly sampled negative per pair,
+  Adam learning rate 0.01, batch size 1024 and one epoch, seed 0. The original
+  karateclub setup used 80-node walks and gensim CBOW training. This changes
+  the walk corpus and embedding objective. The original implementation remains
+  in the parent feature branch, not as a second pipeline here.
+- **Graph sampling correction:** reverse edges are added and deduplicated
+  before GPU sampling. This fixes baseline-fw's duplication of already-present
+  reverse edges, which could overweight bidirectional neighbours.
+- **Richer shared node inputs:** standardised longitude/latitude, one-hot
+  in/out degrees, approximate directed betweenness (500 sampled source nodes,
+  seed 0, transformed by log1p(value * 1000)), and weather missing indicators.
+- **Weather:** six columns including pressure; observed training values define
+  normalisation. Missing inputs are replaced with the training mean (zero after
+  standardisation) and accompanied by missingness indicators.
+- **Road/traffic transforms:** log1p length and AADT, standardised; traffic and
+  its missing indicator are always included. Unreported years carry forward only
+  an earlier available report. This differs from both raw features and the
+  reference notebook's endpoint-clamped traffic-year lookup.
+- **Node2Vec ablation:** every MLP/GraphSAGE and classification/regression pair
+  runs both with and without embeddings. Other features, splits and model seeds
+  stay identical. The same cached embedding seed is held fixed across model runs.
+- **Caching:** persistent monthly and structural caches with source-file
+  signatures. This changes IO performance rather than the intended feature values.
 
-Zero-accident months are included in full-network evaluation and prediction exports. Balanced evaluation has no examples in those months. Single-class AUROC is undefined; top-risk precision counts accident-free months as zero, while recall excludes undefined months.
+## Data handling and targets
+
+- Road features are looked up by actual graph edge ID, correcting the original
+  trainer's position-based lookup in monthly accident lists.
+- Raw sparse feature observations with duplicate indices are averaged while
+  ignoring NaNs. Prior COO coalescing summed duplicates, altering feature values.
+- Opposite directions are merged into one physical-road target, with counts
+  summed. Message passing remains directed. The assumption that physical-road
+  targets suit the labels still needs explicit validation in the data audit.
+- Accident-free sampling includes all genuinely zero-count physical roads. It
+  does not use the original code's endpoint-membership exclusion filter.
+- Training months are shuffled every epoch. One optimiser step is taken per
+  month rather than 32,768-positive mini-batches; differences matter for large months.
+- Only months with available weather files are evaluated. Exact split coverage
+  is recorded in metrics JSON; calendar-year boundaries alone do not establish
+  that every month is present.
+
+## Evaluation and reporting
+
+- Full-network physical-road evaluation is primary; the original code evaluated
+  accident edges plus the negatives remaining after its endpoint-based filter.
+  Our balanced population is a supplementary diagnostic, not a paper equivalent.
+- All available validation/test months are included, even with fewer than ten
+  positive roads. Zero-accident months contribute to MAE and prediction exports;
+  single-class months have undefined AUROC and are excluded only from that average.
+- Regression outputs are clipped at zero during validation, test and prediction
+  export. Training uses raw outputs. This intentional post-processing cannot
+  worsen MAE/MSE for nonnegative targets, and gains must not be attributed solely
+  to model architecture. Clipping can also introduce ties in regression risk scores.
+- One checkpoint is selected per task by all-road validation AUROC or MAE;
+  auxiliary metrics come from that checkpoint, rather than each choosing an epoch.
+- sklearn's AUROC correctly handles ties, unlike baseline-fw's rank implementation.
+- Additional diagnostics include pooled AUROC, AP labelled PR-AUC, threshold
+  precision/recall, monthly top-1% precision/recall, MSE and positive/negative MAE.
+  AP is already in the paper's code; our implementation currently omits F1.
+- Top-risk precision includes accident-free months as zero; top-risk recall
+  omits those months where recall is undefined. Other auxiliary classification
+  metrics are pooled rather than averaged like the primary AUROC.
+- Three model seeds have separate saved checkpoints, prediction files and metrics;
+  combined means/stds are written after every completed seed. Embedding variability
+  is not included in the model-seed standard deviation.
+- Coordinates and target-unit metadata accompany prediction exports for the map.
+
+## Scope and evidence
+
+We cover MLP and GraphSAGE on DE/MD, not all eight states or the paper's other
+architectures, multitask/transfer learning, or repeated hyperparameter search.
+The baseline-fw notebook saved preprocessing timings (DE embeddings 4 s, MD 27 s)
+but no final AUROC/MAE: its training/result cells were unexecuted. Those timings
+are not benchmarks for the merged implementation or the paper's original setup.

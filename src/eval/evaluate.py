@@ -74,5 +74,8 @@ def evaluate(model, dataset, months, task, device, return_predictions=False):
         "pred": torch.stack(all_preds),            # [num_months, num_roads]
         "y": torch.stack(all_y),                   # [num_months, num_roads]
         "road_index": dataset.edge_index[:, dataset.road_edge],  # [2, num_roads]
+        "target_unit": getattr(dataset, "target_unit", "physical"),
     }
+    if getattr(dataset, "node_coordinates", None) is not None:
+        predictions["node_coordinates"] = dataset.node_coordinates  # [N, 2], longitude then latitude
     return results, predictions

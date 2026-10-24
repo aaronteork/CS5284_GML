@@ -1,17 +1,15 @@
-# Python 3.10: shared environment for original Node2Vec, training and notebooks.
-# karateclub 1.3.3 requires the older NumPy/pandas/SciPy/NetworkX versions below.
+# One environment for preprocessing, GPU embeddings, training and notebooks.
+# Python 3.10-3.12. The merged implementation does not require karateclub/PyG.
 torch==2.5.1
-numpy==1.22.4
-pandas==1.3.5
-scipy==1.8.1
-networkx==2.6.3
-gensim==4.3.2
-karateclub==1.3.3
-scikit-learn==1.3.2
+numpy==1.26.4
+pandas==2.2.3
+scipy==1.13.1
+networkx==3.4.2
+scikit-learn==1.5.2
 tqdm==4.67.1
 
 # Notebooks
-matplotlib==3.7.5
-seaborn==0.12.2
+matplotlib==3.9.2
+seaborn==0.13.2
 plotly==5.24.1
 ipywidgets==8.1.5

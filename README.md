@@ -1,62 +1,74 @@
-# CS5284_GML
+# CS5284_GML: merged baseline pipeline
 
-## Dataset download in Colab
+Branch `feature/merged-baselines` combines `feature/baseline` (43025f1) and
+`baseline-fw` (4f926d1) in one `src/`, `data/`, `notebooks/` structure.
+It is a modified reproduction; see [differences](docs/baseline_differences.md).
 
-The loader reuses extracted data or a ZIP already in `data/`. If Harvard
-Dataverse returns HTTP 403, download the state's ZIP (e.g. `DE.zip`) from
-https://doi.org/10.7910/DVN/V71K5R using your browser and upload it to
-`My Drive/cs5284_project/data/DE.zip`. Mount Drive using the notebook, then
-rerun the Node2Vec cell. It extracts the ZIP without a Dataverse API request.
-Keep existing datasets, results and weights; no folder cleanup is needed.
+## Shared pipeline
 
-## Baseline Node2Vec embeddings
+Every model receives coordinates, in/out-degree encodings, approximate
+betweenness, six weather variables, road-type flags, log road length, log AADT
+and missing-value indicators. Continuous weather/traffic statistics use training
+years only. Missing traffic years carry forward an earlier report, never a future
+one. Sparse feature duplicates are averaged while ignoring missing observations.
+Monthly and structural features are cached on disk and reused across experiments.
 
-GraphSAGE uses the original `karateclub.Node2Vec` training implementation and
-original per-walk function, with parallel walk dispatch enabled by default.
-There is no alternative embedding training backend. Use **Python 3.10** and the single dependency
-file, `requirements.txt`, for embeddings, training and notebooks:
+The learned models are a predictor-only MLP and the paper-style edge-aware
+GraphSAGE. Each is trained with and without the same fixed Node2Vec embeddings,
+for classification and regression, across seeds 0/1/2. Physical-road targets,
+corrected negative sampling, nonnegative regression clipping and full-network
+validation/test evaluation are retained. AUROC is averaged monthly using
+positive-road counts; MAE includes all available road-months, including zero-
+accident months. Pooled/balanced and top-risk metrics provide extra diagnostics.
 
-```powershell
-py -3.10 -m venv .venv
-.venv/Scripts/python -m pip install -r requirements.txt
-.venv/Scripts/python -m src.data.node2vec --state DE MD
+## Colab
+
+1. Push this branch to GitHub, then upload `notebooks/train_colab.ipynb` to Colab.
+2. Select a GPU runtime and run cells in order. The clone cell targets
+   `feature/merged-baselines` and privately prompts for a GitHub token if needed.
+3. Keep `STATE = "DE"` to begin. Setup creates a Python 3.12 environment using
+   the single `requirements.txt`; no automatic unit tests are run.
+4. The embedding cell uses the GPU. Initial structural caching computes
+   approximate betweenness on CPU once and can take several minutes.
+5. The training cell runs eight configurations, each for 100 epochs and 3 seeds.
+   Change `STATE` to `MD` and rerun setup onward to train Maryland.
+
+`data/`, `weights/` and `results/` persist in
+`My Drive/cs5284_project/`. If Dataverse returns HTTP 403, download the ZIP from
+https://doi.org/10.7910/DVN/V71K5R and put it in that Drive `data/` folder.
+Existing folders do not need to be cleared. Re-running the same training run
+name overwrites its outputs; incomplete training is not resumed automatically.
+Completed-seed metrics are saved immediately to survive a later interruption.
+
+## Local commands
+
+Use Python 3.10-3.12 and install `requirements.txt` in a virtual environment:
+
+```bash
+python -m pip install -r requirements.txt
+python -m src.data.node2vec --state DE
+python -m src.model.train --state DE --model mlp --task classification --without-node2vec
+python -m src.model.train --state DE --model graphsage --task classification
 ```
 
-Generation runs on CPU. Walk generation automatically uses available CPUs, up
-to eight processes, with a progress bar. Set `--walk-workers N` to override this,
-or `--walk-workers 1` for original serial execution. `--workers` controls only
-the later gensim training and remains four by default. More walk processes use
-more RAM. Parallel walks use fixed chunks and per-chunk seeds; their samples
-differ from the original serial seed sequence. The JSON records these settings.
-Compatible existing serial embeddings can still be reused.
+The embedding trainer uses CUDA when available, otherwise CPU. It is adapted
+from baseline-fw's custom PyTorch skip-gram/negative-sampling implementation,
+with 20-step walks, 10 walks per node, 128 dimensions and one negative per pair.
+This is different from the original karateclub/gensim embedding configuration.
+Generation metadata identifies the implementation and parameters; caches from
+another backend are rejected rather than silently reused. New embeddings live
+under `data/embeddings/node2vec_merged/`; older original embeddings are preserved.
 
-When moving between machines, copy both
-`data/embeddings/node2vec/<state>_128.npy` and its `.json` provenance file. Old
-embeddings generated by the custom skip-gram backend must be regenerated with
-`--force`; they are not accepted by the generation command's cache check.
+## Outputs
 
-Run `notebooks/train_colab.ipynb` with a Colab GPU runtime. Its setup cell
-automatically creates a Python 3.10 environment with `uv`, installs
-`requirements.txt` and verifies GPU access. Its embedding
-cell generates missing files or validates/reuses existing files. The pinned older
-scientific packages are required by the original `karateclub` implementation.
+- `data/<state>/cache/`: weather, coordinates, degree and betweenness caches.
+- `data/embeddings/node2vec_merged/<state>_128.npy` and `.json`: embeddings/provenance.
+- `weights/<state>_<model>_<task>_<n2v|no_n2v>/seed<k>.pt`: best validation checkpoint.
+- `results/<run>/seed<k>_metrics.json`: each completed seed's metrics/configuration.
+- `results/<run>/metrics.json`: mean/std and completion status for all seeds.
+- `results/<run>/seed<k>_test_predictions.pt`: months, predictions, actual counts,
+  road endpoint indices, node longitude/latitude and target-unit metadata.
 
-## Evaluation
-
-Checkpoint selection defaults to full-network (`all`) validation. Primary AUROC
-is computed monthly and averaged with positive-road counts as weights, matching
-the paper's aggregation. Pooled AUROC is supplementary. MAE is pooled over all
-evaluated road-months (equivalent to a sample-count-weighted monthly MAE).
-Other classification metrics remain pooled, except monthly top-risk metrics.
-
-Full-network (`all`) evaluation includes months with zero accidents, including
-their MAE and exported predictions. Balanced evaluation has no examples in
-those months because there are no positive roads to balance. AUROC is undefined
-for single-class splits; top-risk precision includes accident-free months as
-zero, while top-risk recall excludes months where recall is undefined.
-
-Run evaluation regression checks in the training environment:
-
-```powershell
-python -m unittest discover -s tests
-```
+Data, outputs, environments and caches are ignored by Git. Neither parent branch
+contained saved final AUROC/MAE results; the merged pipeline must be trained before
+claiming improvements. The old feature branch remains available for comparison.

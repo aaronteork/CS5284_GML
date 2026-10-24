@@ -16,7 +16,8 @@ import torch
 import torch.nn.functional as F
 from tqdm.auto import tqdm
 
-from src.data import RoadAccidentDataset, download_centrality
+from src.data import RoadAccidentDataset
+from src.data.node2vec import generate_node2vec
 from src.eval import evaluate
 from src.model.models import build_model
 
@@ -38,8 +39,7 @@ class Config:
     state: str = "DE"
     model: str = "mlp"                      # "mlp" or "graphsage"
     task: str = "classification"            # "classification" or "regression"
-    node_features: str = "centrality"       # "centrality", "none", or a path to an .npy file
-    use_traffic_volume: bool = False
+    use_node2vec: bool = True              # ablation: all other features stay identical
     epochs: int = 100
     lr: float = 1e-3
     hidden_channels: int = 256
@@ -53,20 +53,16 @@ class Config:
 
     def __post_init__(self):
         if not self.run_name:
-            self.run_name = f"{self.state}_{self.model}_{self.task}"
+            embedding = "n2v" if self.use_node2vec else "no_n2v"
+            self.run_name = f"{self.state}_{self.model}_{self.task}_{embedding}"
 
 
 def load_dataset(cfg):
     train_years = SPLITS[cfg.state][0]
-    if cfg.node_features == "centrality":
-        embedding_path = download_centrality(cfg.state)
-    elif cfg.node_features == "none":
-        embedding_path = None
-    else:
-        embedding_path = cfg.node_features
+    embedding_path = generate_node2vec(cfg.state, device=cfg.device) if cfg.use_node2vec else None
     return RoadAccidentDataset(
         cfg.state, train_years=train_years,
-        node_embedding_path=embedding_path, use_traffic_volume=cfg.use_traffic_volume,
+        node_embedding_path=embedding_path,
     )
 
 
@@ -129,6 +125,8 @@ def train_seed(cfg, seed, dataset):
             continue
         valid = evaluate(model, dataset, valid_months, cfg.task, cfg.device)
         score = selection_score(valid, cfg)
+        if not np.isfinite(score):
+            raise ValueError("Validation selection metric is undefined; check split labels")
         if score > best_score:
             best_score, best_epoch = score, epoch
             torch.save({"state_dict": model.state_dict(), "config": asdict(cfg), "seed": seed, "epoch": epoch},
@@ -164,13 +162,30 @@ def summarise(runs):
 
 def run(cfg):
     dataset = load_dataset(cfg)
-    runs = [train_seed(cfg, seed, dataset) for seed in cfg.seeds]
+    data_summary = {"num_nodes": dataset.num_nodes, "num_roads": dataset.num_roads,
+                    "target_unit": dataset.target_unit,
+                    "months": {split: len(dataset.months(years)) for split, years in
+                               zip(("train", "valid", "test"), SPLITS[cfg.state])}}
+    print(f"Data coverage: {data_summary}", flush=True)
+    results_dir = RESULTS_DIR / cfg.run_name
+    results_dir.mkdir(parents=True, exist_ok=True)
+    runs = []
+    for seed in cfg.seeds:
+        result = train_seed(cfg, seed, dataset)
+        runs.append(result)
+        with open(results_dir / f"seed{seed}_metrics.json", "w") as f:
+            json.dump({"config": asdict(cfg), "data": data_summary, **result}, f, indent=2)
+        # Persist completed seeds even if a later Colab run is interrupted.
+        with open(results_dir / "metrics.json", "w") as f:
+            json.dump({"config": asdict(cfg), "data": data_summary, "summary": summarise(runs), "runs": runs,
+                       "complete": len(runs) == len(cfg.seeds)}, f, indent=2)
     summary = summarise(runs)
 
     results_dir = RESULTS_DIR / cfg.run_name
     results_dir.mkdir(parents=True, exist_ok=True)
     with open(results_dir / "metrics.json", "w") as f:
-        json.dump({"config": asdict(cfg), "summary": summary, "runs": runs}, f, indent=2)
+        json.dump({"config": asdict(cfg), "data": data_summary, "summary": summary,
+                   "runs": runs, "complete": True}, f, indent=2)
 
     print(f"\n{cfg.run_name}: test results over seeds {cfg.seeds}")
     for protocol, metrics in summary["test"].items():
@@ -184,8 +199,8 @@ def parse_args():
     parser.add_argument("--state", default=defaults.state, choices=sorted(SPLITS))
     parser.add_argument("--model", default=defaults.model, choices=["mlp", "graphsage"])
     parser.add_argument("--task", default=defaults.task, choices=["classification", "regression"])
-    parser.add_argument("--node-features", default=defaults.node_features)
-    parser.add_argument("--use-traffic-volume", action="store_true")
+    parser.add_argument("--without-node2vec", action="store_false", dest="use_node2vec",
+                        help="Ablation: omit only Node2Vec embeddings, retain all other features")
     parser.add_argument("--epochs", type=int, default=defaults.epochs)
     parser.add_argument("--lr", type=float, default=defaults.lr)
     parser.add_argument("--hidden-channels", type=int, default=defaults.hidden_channels)
