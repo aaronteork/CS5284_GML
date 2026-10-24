@@ -1,0 +1,30 @@
+# Local environments
+/.venv/
+/venv/
+
+# Downloaded data, embeddings, model checkpoints and generated results
+/data/
+/weights/
+/results/**
+!/results/**/
+!/results/**/metrics.json
+!/results/**/run_metadata.json
+!/results/**/seed[0-9]*_metrics.json
+!/results/**/seed[0-9]*_history.csv
+!/results/**/seed[0-9]*_history.png
+
+# Original Drive exports stay local; only selected reports are versioned
+/results*.zip
+
+# Python and notebook caches
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local logs and operating-system files
+*.log
+.DS_Store
+Thumbs.db

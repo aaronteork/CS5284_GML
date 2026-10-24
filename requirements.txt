@@ -1,0 +1,15 @@
+# One environment for preprocessing, GPU embeddings, training and notebooks.
+# Python 3.10-3.12. The merged implementation does not require karateclub/PyG.
+torch==2.5.1
+numpy==1.26.4
+pandas==2.2.3
+scipy==1.13.1
+networkx==3.4.2
+scikit-learn==1.5.2
+tqdm==4.67.1
+
+# Notebooks
+matplotlib==3.9.2
+seaborn==0.13.2
+plotly==5.24.1
+ipywidgets==8.1.5
