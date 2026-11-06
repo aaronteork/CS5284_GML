@@ -1,3 +1,5 @@
-from .models import AccidentModel, EdgeSAGEConv, GraphSAGE, Identity, RoadPredictor, build_model
+from .models import (AccidentModel, EdgeSAGEConv, GatedGCN, GatedGCNLayer,
+                     GraphSAGE, GraphTransformer, Identity, RoadPredictor, build_model)
 
-__all__ = ["AccidentModel", "EdgeSAGEConv", "GraphSAGE", "Identity", "RoadPredictor", "build_model"]
+__all__ = ["AccidentModel", "EdgeSAGEConv", "GatedGCN", "GatedGCNLayer",
+           "GraphSAGE", "GraphTransformer", "Identity", "RoadPredictor", "build_model"]

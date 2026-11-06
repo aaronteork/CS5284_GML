@@ -44,6 +44,70 @@ Completed-seed metrics are saved immediately to survive a later interruption.
 
 ## Local commands
 
+### GatedGCN extension
+
+`notebooks/train_baseline+gated_gcn.ipynb` is a clean copy of the baseline notebook with
+additional GatedGCN classification and regression cells. It runs all three models
+with/without Node2Vec: 12 configurations and 36 seed runs per state. To train only
+the new model, complete setup/embeddings and skip the MLP/GraphSAGE training cells.
+The original baseline notebook is unchanged. Push this code before using Colab;
+the new notebook defaults to `main`, so set `BRANCH` to the pushed branch if different.
+
+Models live in `src/model/mlp/`, `src/model/graphsage/` and
+`src/model/gatedgcn/`. The shared endpoint/road predictor lives in
+`src/model/common.py`; `src/model/models.py` retains the factory and existing
+imports. Moving the baselines preserves their parameter names and checkpoint
+compatibility.
+
+GatedGCN projects node and road features to the hidden width, then jointly updates
+node and edge states with feature-wise sigmoid gates normalised over incoming
+edges, batch normalisation, ReLU and residual connections. It uses the existing
+directed graph without adding self-loops, the shared road predictor, and the same
+losses, sampling and checkpoint selection. This follows the residual GatedGCN
+formulation in [Benchmarking GNNs](https://github.com/graphdeeplearning/benchmarking-gnns/blob/master/layers/gated_gcn_layer.py),
+implemented with native PyTorch. Hidden width/layer defaults remain 256/2;
+parameter counts differ between architectures. Inspection outputs are deferred.
+No GatedGCN training results are included yet.
+
+```bash
+python -m src.model.train --state DE --model gatedgcn --task classification
+python -m src.model.train --state DE --model gatedgcn --task regression --without-node2vec
+```
+
+Outputs use separate `<state>_gatedgcn_<task>_<n2v|no_n2v>` run directories.
+
+### Graph Transformer extension
+
+`notebooks/train_baseline+gated_gcn+graph_transformer.ipynb` copies the GatedGCN
+notebook and adds Graph Transformer classification/regression cells. All four
+models with both tasks, both Node2Vec settings and three seeds total 48 training
+runs per state. Complete setup/embeddings and skip earlier model training cells
+to run only the 12 new Graph Transformer seed runs. Set `BRANCH` to the pushed
+branch containing the implementation before running Colab.
+
+`src/model/graph_transformer/` contains a native-PyTorch sparse edge-aware Graph
+Transformer. Defaults are two blocks, width 256, four heads (64 channels/head),
+and zero dropout. Each block applies pre-LayerNorm multi-head attention and a
+256 -> 512 -> 256 GELU feed-forward network, each with a residual connection.
+For each incoming road j -> i, its projected attributes multiply the destination
+query and source key elementwise before summation/scaling. Softmax is over
+incoming sources independently for each destination/head. Only existing edges
+receive messages; no dense node-pair attention or additional self-loops are used.
+
+This adapts the Week 09 Lab 03 edge-modulated attention score while retaining
+the shared per-road predictor and existing structural inputs/Node2Vec ablation.
+It does not add Laplacian PE or update hidden edge states. Hidden widths must be
+divisible by `--num-heads`; heads are configurable and saved in run configuration.
+No new dependencies or inspection outputs are added. Full-dataset training
+results are not included yet.
+
+```bash
+python -m src.model.train --state DE --model graph_transformer --task classification --num-heads 4
+python -m src.model.train --state DE --model graph_transformer --task regression --without-node2vec
+```
+
+Outputs use separate `<state>_graph_transformer_<task>_<n2v|no_n2v>` run directories.
+
 Use Python 3.10-3.12 and install `requirements.txt` in a virtual environment:
 
 ```bash
@@ -69,7 +133,8 @@ Run the CPU regression tests locally after installing the requirements:
 python -m unittest discover -s tests -v
 ```
 
-The suite covers training-only weather normalization, missing-value indicators,
+Tests focus on data, evaluation and training-output pipelines rather than model
+architecture internals. The suite covers training-only weather normalization, missing-value indicators,
 traffic carry-forward without future reports, physical-road label aggregation,
 sparse duplicate averaging, cache invalidation, embedding provenance and reverse-edge
 deduplication, and identical shared inputs in the Node2Vec ablation. Evaluation

@@ -1,4 +1,4 @@
-"""Train the MLP / GraphSAGE baselines.
+"""Train MLP, GraphSAGE, GatedGCN and Graph Transformer road-accident models.
 
     python -m src.model.train --state DE --model mlp --task classification --seeds 0 1 2
 
@@ -21,7 +21,7 @@ from tqdm.auto import tqdm
 from src.data import RoadAccidentDataset
 from src.data.node2vec import generate_node2vec, node2vec_path
 from src.eval import evaluate
-from src.model.models import build_model
+from src.model.models import MODEL_NAMES, build_model
 
 ROOT = Path(__file__).resolve().parents[2]
 WEIGHTS_DIR = ROOT / "weights"
@@ -39,7 +39,7 @@ MIN_ACCIDENT_ROADS = 10
 @dataclass
 class Config:
     state: str = "DE"
-    model: str = "mlp"                      # "mlp" or "graphsage"
+    model: str = "mlp"                      # See MODEL_NAMES for encoder choices.
     task: str = "classification"            # "classification" or "regression"
     use_node2vec: bool = True              # ablation: all other features stay identical
     epochs: int = 100
@@ -47,6 +47,7 @@ class Config:
     hidden_channels: int = 256
     num_layers: int = 2
     dropout: float = 0.0
+    num_heads: int = 4                     # Graph Transformer only; width must be divisible.
     eval_every: int = 5
     select_protocol: str = "all"            # full-network validation picks the best epoch
     seeds: list = field(default_factory=lambda: [0, 1, 2])
@@ -167,6 +168,7 @@ def train_seed(cfg, seed, dataset):
     model = build_model(
         cfg.model, sample.x.size(1), sample.edge_attr.size(1),
         cfg.hidden_channels, cfg.num_layers, cfg.dropout,
+        num_heads=cfg.num_heads,
     ).to(cfg.device)
     optimizer = torch.optim.Adam(model.parameters(), lr=cfg.lr)
 
@@ -275,7 +277,7 @@ def parse_args():
     defaults = Config()
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--state", default=defaults.state, choices=sorted(SPLITS))
-    parser.add_argument("--model", default=defaults.model, choices=["mlp", "graphsage"])
+    parser.add_argument("--model", default=defaults.model, choices=MODEL_NAMES)
     parser.add_argument("--task", default=defaults.task, choices=["classification", "regression"])
     parser.add_argument("--without-node2vec", action="store_false", dest="use_node2vec",
                         help="Ablation: omit only Node2Vec embeddings, retain all other features")
@@ -284,6 +286,8 @@ def parse_args():
     parser.add_argument("--hidden-channels", type=int, default=defaults.hidden_channels)
     parser.add_argument("--num-layers", type=int, default=defaults.num_layers)
     parser.add_argument("--dropout", type=float, default=defaults.dropout)
+    parser.add_argument("--num-heads", type=int, default=defaults.num_heads,
+                        help="Graph Transformer attention heads; must divide hidden channels")
     parser.add_argument("--eval-every", type=int, default=defaults.eval_every)
     parser.add_argument("--select-protocol", default=defaults.select_protocol, choices=["all", "balanced"])
     parser.add_argument("--seeds", type=int, nargs="+", default=defaults.seeds)
