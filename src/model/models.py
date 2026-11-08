@@ -4,8 +4,10 @@ from .mlp import Identity
 from .graphsage import EdgeSAGEConv, GraphSAGE
 from .gatedgcn import GatedGCN, GatedGCNLayer
 from .graph_transformer import GraphTransformer
+from .gat import GAT
+from .gcn import GCN
 
-MODEL_NAMES = ("mlp", "graphsage", "gatedgcn", "graph_transformer")
+MODEL_NAMES = ("mlp", "graphsage", "gcn", "gat", "gatedgcn", "graph_transformer")
 
 
 def build_model(name, in_channels_node, in_channels_edge, hidden_channels=256, num_layers=2,
@@ -14,6 +16,10 @@ def build_model(name, in_channels_node, in_channels_edge, hidden_channels=256, n
         encoder = Identity(in_channels_node)
     elif name == "graphsage":
         encoder = GraphSAGE(in_channels_node, in_channels_edge, hidden_channels, num_layers, dropout)
+    elif name == "gcn":
+        encoder = GCN(in_channels_node, in_channels_edge, hidden_channels, num_layers, dropout)
+    elif name == "gat":
+        encoder = GAT(in_channels_node, in_channels_edge, hidden_channels, num_layers, dropout, num_heads)
     elif name == "gatedgcn":
         encoder = GatedGCN(in_channels_node, in_channels_edge, hidden_channels, num_layers, dropout)
     elif name == "graph_transformer":

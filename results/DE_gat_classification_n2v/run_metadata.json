@@ -1,0 +1,82 @@
+{
+  "config": {
+    "state": "DE",
+    "model": "gat",
+    "task": "classification",
+    "use_node2vec": true,
+    "epochs": 100,
+    "lr": 0.001,
+    "hidden_channels": 256,
+    "num_layers": 2,
+    "dropout": 0.0,
+    "num_heads": 4,
+    "eval_every": 5,
+    "select_protocol": "all",
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "device": "cuda",
+    "run_name": "DE_gat_classification_n2v"
+  },
+  "data": {
+    "num_nodes": 49023,
+    "num_roads": 65252,
+    "target_unit": "physical",
+    "months": {
+      "train": 48,
+      "valid": 60,
+      "test": 57
+    }
+  },
+  "provenance": {
+    "git_commit": "d5af1890d481411a0aee3e0296585e95f8a25df5",
+    "git_dirty": true,
+    "torch_version": "2.14.1+cu132",
+    "numpy_version": "2.5.2",
+    "splits": {
+      "train": [
+        2009,
+        2010,
+        2011,
+        2012
+      ],
+      "valid": [
+        2013,
+        2014,
+        2015,
+        2016,
+        2017
+      ],
+      "test": [
+        2018,
+        2019,
+        2020,
+        2021,
+        2022
+      ]
+    },
+    "embedding": {
+      "backend": "baseline-fw.torch-skipgram-v2",
+      "state": "DE",
+      "parameters": {
+        "dimensions": 128,
+        "walk_length": 20,
+        "walks_per_node": 10,
+        "window_size": 5,
+        "epochs": 1,
+        "batch_size": 1024,
+        "lr": 0.01,
+        "seed": 0,
+        "p": 1,
+        "q": 1,
+        "negatives_per_pair": 1,
+        "context_direction": "forward"
+      },
+      "num_nodes": 49023,
+      "torch_version": "2.14.1+cu132",
+      "device": "cuda"
+    }
+  }
+}

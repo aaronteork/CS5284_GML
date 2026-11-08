@@ -1,0 +1,104 @@
+{
+  "config": {
+    "state": "DE",
+    "model": "gcn",
+    "task": "classification",
+    "use_node2vec": false,
+    "epochs": 100,
+    "lr": 0.001,
+    "hidden_channels": 256,
+    "num_layers": 2,
+    "dropout": 0.0,
+    "num_heads": 4,
+    "eval_every": 5,
+    "select_protocol": "all",
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "device": "cuda",
+    "run_name": "DE_gcn_classification_no_n2v"
+  },
+  "data": {
+    "num_nodes": 49023,
+    "num_roads": 65252,
+    "target_unit": "physical",
+    "months": {
+      "train": 48,
+      "valid": 60,
+      "test": 57
+    }
+  },
+  "provenance": {
+    "git_commit": "d5af1890d481411a0aee3e0296585e95f8a25df5",
+    "git_dirty": true,
+    "torch_version": "2.14.1+cu132",
+    "numpy_version": "2.5.2",
+    "splits": {
+      "train": [
+        2009,
+        2010,
+        2011,
+        2012
+      ],
+      "valid": [
+        2013,
+        2014,
+        2015,
+        2016,
+        2017
+      ],
+      "test": [
+        2018,
+        2019,
+        2020,
+        2021,
+        2022
+      ]
+    },
+    "embedding": null
+  },
+  "seed": 1,
+  "best_epoch": 50,
+  "valid": {
+    "all": {
+      "AUROC": 0.8531620226701899,
+      "PR-AUC": 0.21467709000273053,
+      "precision@0.5": 0.1064515590603168,
+      "recall@0.5": 0.8094455765284897,
+      "AUROC (pooled)": 0.8523068777732788,
+      "precision@top1%": 0.3824655436447167,
+      "recall@top1%": 0.10574746908532812
+    },
+    "balanced": {
+      "AUROC": 0.853674167269093,
+      "PR-AUC": 0.838552092435402,
+      "precision@0.5": 0.761810592537046,
+      "recall@0.5": 0.8094455765284897,
+      "AUROC (pooled)": 0.8529452822120356,
+      "precision@top1%": 0.974126624353623,
+      "recall@top1%": 0.019673563941791785
+    }
+  },
+  "test": {
+    "all": {
+      "AUROC": 0.8355220803808866,
+      "PR-AUC": 0.20363011129410857,
+      "precision@0.5": 0.10752569924443364,
+      "recall@0.5": 0.7648481455965094,
+      "AUROC (pooled)": 0.8321960459366415,
+      "precision@top1%": 0.3793288734853981,
+      "recall@top1%": 0.1014356914142598
+    },
+    "balanced": {
+      "AUROC": 0.83551275369261,
+      "PR-AUC": 0.8222074383956594,
+      "precision@0.5": 0.7569873074273213,
+      "recall@0.5": 0.7648481455965094,
+      "AUROC (pooled)": 0.8328533453930898,
+      "precision@top1%": 0.9731591905523307,
+      "recall@top1%": 0.019633167043547305
+    }
+  }
+}
