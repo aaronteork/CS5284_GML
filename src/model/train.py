@@ -18,7 +18,7 @@ import torch
 import torch.nn.functional as F
 from tqdm.auto import tqdm
 
-from src.data import RoadAccidentDataset
+from src.data import DATA_DIR, RoadAccidentDataset
 from src.data.node2vec import generate_node2vec, node2vec_path
 from src.eval import evaluate
 from src.model.models import MODEL_NAMES, build_model
@@ -53,6 +53,10 @@ class Config:
     seeds: list = field(default_factory=lambda: [0, 1, 2])
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
     run_name: str = ""
+    data_dir: str = ""                    # Empty retains the repository's data folder.
+    output_dir: str = ""                  # Root for results/ and weights/; empty retains defaults.
+    history_groups: list = field(default_factory=list)
+    history_min_months: int = 0            # Set 12 for matched-warm-up history ablations, including control.
 
     def __post_init__(self):
         if not self.run_name:
@@ -62,11 +66,24 @@ class Config:
 
 def load_dataset(cfg):
     train_years = SPLITS[cfg.state][0]
-    embedding_path = generate_node2vec(cfg.state, device=cfg.device) if cfg.use_node2vec else None
-    return RoadAccidentDataset(
+    data_dir = Path(cfg.data_dir) if cfg.data_dir else DATA_DIR
+    embedding_path = generate_node2vec(cfg.state, data_dir=data_dir, device=cfg.device) if cfg.use_node2vec else None
+    dataset = RoadAccidentDataset(
         cfg.state, train_years=train_years,
-        node_embedding_path=embedding_path,
+        node_embedding_path=embedding_path, data_dir=data_dir,
     )
+    if cfg.history_groups or cfg.history_min_months:
+        from src.history.integration import HistoryDataset
+        dataset = HistoryDataset(dataset, groups=cfg.history_groups, min_history=cfg.history_min_months)
+    return dataset
+
+
+def results_directory(cfg):
+    return (Path(cfg.output_dir) / "results" if cfg.output_dir else RESULTS_DIR) / cfg.run_name
+
+
+def weights_directory(cfg):
+    return (Path(cfg.output_dir) / "weights" if cfg.output_dir else WEIGHTS_DIR) / cfg.run_name
 
 
 def selection_score(results, cfg):
@@ -81,9 +98,8 @@ HISTORY_COLUMNS = ["epoch", "train_loss", "valid_auroc", "valid_mae",
 
 def save_curves(history_path, cfg):
     """Plot recorded values; blank validation entries are unevaluated epochs."""
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
+    from matplotlib.backends.backend_agg import FigureCanvasAgg
+    from matplotlib.figure import Figure
 
     with open(history_path, newline="", encoding="utf-8") as stream:
         rows = list(csv.DictReader(stream))
@@ -91,7 +107,10 @@ def save_curves(history_path, cfg):
         return
     metric = "valid_auroc" if cfg.task == "classification" else "valid_mae"
     evaluated = [row for row in rows if row[metric]]
-    fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+    # An isolated canvas saves PNGs without switching a notebook's inline backend.
+    fig = Figure(figsize=(10, 4))
+    FigureCanvasAgg(fig)
+    axes = fig.subplots(1, 2)
     try:
         axes[0].plot([int(r["epoch"]) for r in rows], [float(r["train_loss"]) for r in rows])
         axes[0].set_ylabel("Training BCE loss" if cfg.task == "classification" else "Training MAE loss")
@@ -110,7 +129,7 @@ def save_curves(history_path, cfg):
         fig.tight_layout()
         fig.savefig(history_path.with_suffix(".png"), dpi=150)
     finally:
-        plt.close(fig)
+        fig.clear()
 
 
 def run_provenance(cfg):
@@ -122,7 +141,8 @@ def run_provenance(cfg):
             return None
 
     status = git("status", "--porcelain")
-    embedding_meta = node2vec_path(cfg.state).with_suffix(".json")
+    data_dir = Path(cfg.data_dir) if cfg.data_dir else DATA_DIR
+    embedding_meta = node2vec_path(cfg.state, data_dir=data_dir).with_suffix(".json")
     return {"git_commit": git("rev-parse", "HEAD"),
             "git_dirty": None if status is None else bool(status),
             "torch_version": str(torch.__version__), "numpy_version": np.__version__,
@@ -172,10 +192,10 @@ def train_seed(cfg, seed, dataset):
     ).to(cfg.device)
     optimizer = torch.optim.Adam(model.parameters(), lr=cfg.lr)
 
-    weights_path = WEIGHTS_DIR / cfg.run_name / f"seed{seed}.pt"
+    weights_path = weights_directory(cfg) / f"seed{seed}.pt"
     weights_path.parent.mkdir(parents=True, exist_ok=True)
     best_score, best_epoch = -float("inf"), 0
-    results_dir = RESULTS_DIR / cfg.run_name
+    results_dir = results_directory(cfg)
     results_dir.mkdir(parents=True, exist_ok=True)
     history_path = results_dir / f"seed{seed}_history.csv"
     with open(history_path, "w", newline="", encoding="utf-8") as stream:
@@ -218,7 +238,7 @@ def train_seed(cfg, seed, dataset):
     test, predictions = evaluate(model, dataset, dataset.months(test_years), cfg.task, cfg.device,
                                  return_predictions=True)
 
-    results_dir = RESULTS_DIR / cfg.run_name
+    results_dir = results_directory(cfg)
     results_dir.mkdir(parents=True, exist_ok=True)
     torch.save(predictions, results_dir / f"seed{seed}_test_predictions.pt")
     return {"seed": seed, "best_epoch": best_epoch, "valid": valid, "test": test}
@@ -244,9 +264,11 @@ def run(cfg):
                     "months": {split: len(dataset.months(years)) for split, years in
                                zip(("train", "valid", "test"), SPLITS[cfg.state])}}
     print(f"Data coverage: {data_summary}", flush=True)
-    results_dir = RESULTS_DIR / cfg.run_name
+    results_dir = results_directory(cfg)
     results_dir.mkdir(parents=True, exist_ok=True)
     provenance = run_provenance(cfg)
+    if hasattr(dataset, "history_provenance"):
+        provenance["accident_history"] = dataset.history_provenance()
     with open(results_dir / "run_metadata.json", "w", encoding="utf-8") as stream:
         json.dump({"config": asdict(cfg), "data": data_summary, "provenance": provenance}, stream, indent=2)
     runs = []
@@ -261,7 +283,7 @@ def run(cfg):
                        "provenance": provenance, "complete": len(runs) == len(cfg.seeds)}, f, indent=2)
     summary = summarise(runs)
 
-    results_dir = RESULTS_DIR / cfg.run_name
+    results_dir = results_directory(cfg)
     results_dir.mkdir(parents=True, exist_ok=True)
     with open(results_dir / "metrics.json", "w") as f:
         json.dump({"config": asdict(cfg), "data": data_summary, "summary": summary,
@@ -293,6 +315,12 @@ def parse_args():
     parser.add_argument("--seeds", type=int, nargs="+", default=defaults.seeds)
     parser.add_argument("--device", default=defaults.device)
     parser.add_argument("--run-name", default="")
+    parser.add_argument("--data-dir", default="", help="Extracted benchmark and embedding folder")
+    parser.add_argument("--output-dir", default="", help="Root containing results/ and weights/")
+    parser.add_argument("--history-groups", nargs="*", default=[],
+                        choices=["own_history", "neighbour_history", "history_coverage"])
+    parser.add_argument("--history-min-months", type=int, default=0,
+                        help="Common warm-up for history and matched controls; use 12 for report ablations")
     return Config(**{k.replace("-", "_"): v for k, v in vars(parser.parse_args()).items()})
 
 
