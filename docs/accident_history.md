@@ -64,7 +64,7 @@ none 模式也做相同的月份和标签检查，保证 ablation 覆盖一致�
 
 分类按验证 AUROC、回归按验证 MAE 选最佳权重；正式测试仅评估最佳权重。all/balanced 两种评估保留，主表使用 all。回归评估仍把负预测截为零。
 
---smoke-test 只用两个训练月份、两个验证月份训练两轮，不评估测试集。src.compare 排除 smoke 和未完成实验，并仅匹配相同代码/数据/参数/种子的 baseline。src.simple_baselines 提供全零、lag1、mean3、mean12 参照。
+--smoke-test 只用两个训练月份、两个验证月份训练两轮，不评估测试集。src.compare 排除 smoke 和未完成实验，并将兼容的已提交原始结果作为参考；epoch 预算或代码/数据来源不同的差值只能作上下文比较。src.simple_baselines 提供全零、lag1、mean3、mean12 参照。
 
 ## 注意事项
 

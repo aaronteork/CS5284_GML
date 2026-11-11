@@ -1,5 +1,7 @@
 """Persistent monthly and structural feature caches adapted from baseline-fw."""
 import json
+import filecmp
+import re
 import time
 from pathlib import Path
 
@@ -11,8 +13,29 @@ from tqdm.auto import tqdm
 
 def load_node_cache(state_dir, columns, num_nodes):
     state_dir = Path(state_dir)
-    files = sorted((state_dir / "Nodes").glob("node_features_*_*.csv"),
-                   key=lambda p: tuple(map(int, p.stem.split("_")[-2:])))
+    pattern = re.compile(r"node_features_(\d{4})_(\d{1,2})(?: \((\d+)\))?\.csv$")
+    by_month = {}
+    for path in (state_dir / "Nodes").glob("node_features_*_*.csv"):
+        match = pattern.fullmatch(path.name)
+        if match is None:
+            raise ValueError(f"Unrecognized monthly node feature filename: {path.name}")
+        year, month = int(match.group(1)), int(match.group(2))
+        if not 1 <= month <= 12:
+            raise ValueError(f"Invalid month in node feature filename: {path.name}")
+        by_month.setdefault((year, month), []).append((path, match.group(3)))
+
+    files = []
+    for month, candidates in sorted(by_month.items()):
+        candidates.sort(key=lambda item: (item[1] is not None,
+                                         int(item[1]) if item[1] is not None else 0))
+        selected = candidates[0][0]
+        for duplicate, _ in candidates[1:]:
+            if not filecmp.cmp(selected, duplicate, shallow=False):
+                raise ValueError(
+                    f"Conflicting node feature files for {month[0]}-{month[1]:02d}: "
+                    f"{selected.name} and {duplicate.name}"
+                )
+        files.append(selected)
     if not files:
         raise ValueError(f"No monthly node features in {state_dir}")
     signature = {"version": 2, "columns": columns, "num_nodes": num_nodes,

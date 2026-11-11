@@ -27,11 +27,13 @@ The four-model pipeline supports past-only physical-road accident history
 features through an archive-backed dataset adapter. The directed graph remains
 unchanged for message passing; labels and history are aligned to physical roads
 by combining both road directions. See [the integration notes](docs/accident_history.md)
-and [Colab guide](docs/colab_history_guide.md). The current completed
-history-enabled reports are in [`results/history_v1/`](results/history_v1/README.md).
-These reports contain metrics and training records only; datasets, predictions,
-and trained checkpoints are kept outside GitHub. The included history-enabled
-runs do not yet provide a complete matched `history=none` comparison.
+and [Colab guide](docs/colab_history_guide.md). The completed history-enabled
+reports are in [`results/history_v1/`](results/history_v1/README.md). The
+comparison uses committed original MLP/GraphSAGE results as contextual
+references where available; it does not require rerunning `history=none`.
+Other models without committed original results have no reference delta. These
+reports contain metrics and training records only; datasets, predictions, and
+trained checkpoints are kept outside GitHub.
 
 ## Colab
 

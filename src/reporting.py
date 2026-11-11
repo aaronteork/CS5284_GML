@@ -32,11 +32,12 @@ def load_training_results(results_dir):
                "AUROC", "AUROC SD", "AP", "AP SD", "MAE", "MAE SD",
                "Source commit", "Dirty checkout"]
     rows = []
-    for path in sorted(Path(results_dir).glob("*/metrics.json")):
+    for path in sorted(Path(results_dir).rglob("metrics.json")):
         payload = json.loads(path.read_text(encoding="utf-8"))
         cfg, runs = payload["config"], payload.get("runs", [])
         provenance = payload.get("provenance") or {}
-        if not payload.get("complete") or not runs or provenance.get("osm") is not None:
+        if (not payload.get("complete") or payload.get("smoke_only") or not runs
+                or "test" not in payload.get("summary", {}) or provenance.get("osm") is not None):
             continue
         metrics = summarise(runs)["test"]["all"]
         row = {"Run": cfg["run_name"], "State": cfg["state"], "Model": cfg["model"],
@@ -44,8 +45,10 @@ def load_training_results(results_dir):
                "Seeds": len(runs), "Epochs": cfg["epochs"],
                "Source commit": provenance.get("git_commit"),
                "Dirty checkout": provenance.get("git_dirty")}
-        row["History"] = "+".join(cfg.get("history_groups", [])) or (
-            "Matched warm-up control" if cfg.get("history_min_months", 0) else "None")
+        history_mode = cfg.get("history_mode")
+        row["History"] = (history_mode if history_mode in ("own", "all") else
+                           "+".join(cfg.get("history_groups", [])) or
+                           ("Matched warm-up control" if cfg.get("history_min_months", 0) else "None"))
         for source, label in (("AUROC", "AUROC"), ("PR-AUC", "AP"), ("MAE", "MAE")):
             values = metrics.get(source, {})
             row[label] = values.get("mean", float("nan"))
@@ -69,7 +72,14 @@ def format_training_results(results, task):
 
 def plot_training_history(results_dir, run_name, seed=0):
     """Plot recorded training and validation curves without test-set tuning."""
-    directory = Path(results_dir) / run_name
+    root = Path(results_dir)
+    directory = root / run_name
+    if not (directory / "metrics.json").is_file():
+        matches = [path.parent for path in root.rglob("metrics.json")
+                   if json.loads(path.read_text(encoding="utf-8")).get("config", {}).get("run_name") == run_name]
+        if len(matches) != 1:
+            raise FileNotFoundError(f"Expected one results directory for run {run_name!r}; found {len(matches)}")
+        directory = matches[0]
     payload = json.loads((directory / "metrics.json").read_text(encoding="utf-8"))
     history = pd.read_csv(directory / f"seed{seed}_history.csv")
     task = payload["config"]["task"]

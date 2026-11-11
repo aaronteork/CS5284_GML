@@ -20,7 +20,8 @@ def main():
     parser.add_argument("--report", default="reports/data_validation.json")
     args = parser.parse_args()
     dataset = load_dataset(Config(use_node2vec=False, data_dir=args.data_dir,
-                                  history_dir=args.history_dir, device="cpu"))
+                                  history_dir=args.history_dir, history_mode="all",
+                                  device="cpu"))
     history = dataset.history
     t = history.positions[(2012, 12)]
     raw = history.raw[t]

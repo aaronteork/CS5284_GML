@@ -25,7 +25,7 @@ md("""
 数据在 Colab 本地磁盘读取；checkpoint 和结果每个 epoch 直接写入 Drive。
 图保留有向边，标签和历史按无序端点合并。历史只使用目标月以前的事故。
 
-初版默认：四模型、分类、无 Node2Vec、无历史/完整历史对照、100 epochs、3 seeds。
+初版默认：四模型、分类、Node2Vec、完整历史特征、100 epochs、3 seeds。
 每个模型有单独的运行单元；建议先完成 MLP，确认后继续其他模型。
 """)
 code("""
@@ -100,13 +100,14 @@ run_live([TRAIN_PYTHON, '-u', '-m', 'src.prepare', '--report', str(OUTPUT_DIR / 
 md("""
 ## 3. 固定实验设置
 先保持以下默认值。若需要两类任务一并运行，设置 TASKS=['classification', 'regression']。
-完整自身历史消融可增加 HISTORY_MODES 中的 'own'。若启用 Node2Vec，baseline/history 两边同时启用。
+默认只训练完整历史配置；分类和回归结果会与仓库中已有原始基准分数作上下文比较。
+如需自身历史子组消融，可将 HISTORY_MODES 改为 ['own']。不要为了该比较重跑无历史组。
 修改层宽/学习率/epoch 等后需新的 EXPERIMENT_TAG，旧实验不会被静默覆盖。
 """)
 code("""
 TASKS = ['classification']
-HISTORY_MODES = ['none', 'all']
-USE_NODE2VEC = False
+HISTORY_MODES = ['all']
+USE_NODE2VEC = True
 SEEDS = [0, 1, 2]
 EPOCHS = 100
 HIDDEN_CHANNELS = 256
@@ -164,8 +165,9 @@ for number, model in enumerate(['mlp', 'graphsage', 'gatedgcn', 'graph_transform
     code(f"run_model('{model}')")
 md("""
 ## 10. 汇总正式结果
-只有完成的正式实验进入 comparison.csv。delta 只在代码、数据、模型参数和种子相同的
-baseline/history 间计算：AUROC 差值越大越好，MAE 差值越小越好。
+只有完成的正式实验进入 comparison.csv。表格会使用仓库里兼容的原始 MLP/GraphSAGE
+结果作为参考；原始运行用了 100 epochs，历史运行用了 30/40 epochs，因此差值仅作上下文比较。
+AUROC 差值为正表示历史结果更高，MAE 差值为负表示历史结果更低；缺少原始结果的模型不显示 delta。
 要继续回归：在第 3 步设 TASKS=['regression']，重新运行第 3 步，再依次运行四模型单元。
 不要依据测试结果不断调参；选择和调参使用验证集。
 """)
@@ -194,7 +196,7 @@ Drive 的 `train_historydata/experiments/weights/<run>/`：最佳 checkpoint、�
 
 保留了原 benchmark 的目标月观测天气。因此本实验是在同等原始输入条件下比较新增历史，
 不能宣称所有输入在月初均已可用。历史严格过去，但后续测试月份可使用此前测试月份已发生的事故。
-原历史 EDA 查看过 2018 年；报告需披露这与测试期的重叠。旧仓库分数仅作参考，正式增益看本次 baseline 对照。
+原历史 EDA 查看过 2018 年；报告需披露这与测试期的重叠。旧仓库分数是上下文参考，不是配对消融。
 """)
 
 notebook = {"cells": cells, "metadata": {"kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},

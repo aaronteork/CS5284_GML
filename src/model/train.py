@@ -12,6 +12,7 @@ import json
 import subprocess
 import time
 from dataclasses import asdict, dataclass, field
+from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
@@ -115,6 +116,42 @@ def atomic_json(value, path):
     temporary.replace(path)
 
 
+@lru_cache(maxsize=1024)
+def _cached_file_sha256(path, size, mtime_ns):
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def dataset_fingerprint(dataset, cfg):
+    base = dataset
+    while hasattr(base, "base"):
+        base = base.base
+    state_dir = Path(base.dir)
+    files = [state_dir / "adj_matrix.pt", state_dir / "accidents_monthly.csv"]
+    files.extend(sorted((state_dir / "Nodes").glob("*.csv")))
+    files.extend(sorted((state_dir / "Edges").glob("*.pt")))
+    embedding = None
+    if cfg.use_node2vec:
+        embedding = node2vec_path(cfg.state, project_path(cfg.data_dir))
+        files.append(embedding)
+
+    signatures = []
+    for path in files:
+        if not path.is_file():
+            raise FileNotFoundError(f"Experiment input is missing: {path}")
+        stat = path.stat()
+        if embedding is not None and path == embedding:
+            label = f"node2vec/{cfg.state}/{path.name}"
+        else:
+            label = path.relative_to(state_dir).as_posix()
+        signatures.append([label, _cached_file_sha256(str(path.resolve()),
+                                                       stat.st_size, stat.st_mtime_ns)])
+    return hashlib.sha256(json.dumps(signatures, sort_keys=True).encode()).hexdigest()
+
+
 def experiment_identity(cfg, dataset):
     settings = asdict(cfg)
     for key in ("device", "resume", "data_dir", "history_dir", "output_dir", "seeds"):
@@ -125,7 +162,7 @@ def experiment_identity(cfg, dataset):
         digest.update(path.read_bytes())
     history = getattr(dataset, "history", None)
     return {"settings": settings, "source_sha256": digest.hexdigest(),
-            "data_fingerprint": getattr(dataset, "data_fingerprint", None),
+            "data_fingerprint": dataset_fingerprint(dataset, cfg),
             "history_fingerprint": getattr(history, "fingerprint", None)}
 
 

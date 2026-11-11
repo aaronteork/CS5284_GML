@@ -36,7 +36,7 @@ Runtime → Change runtime type → GPU。单张 **T4 16 GB** 可作为起点，
 
 ```python
 TASKS = ['classification']
-HISTORY_MODES = ['none', 'all']
+HISTORY_MODES = ['all']
 USE_NODE2VEC = True
 SEEDS = [0, 1, 2]
 EPOCHS = 100
@@ -44,15 +44,15 @@ HIDDEN_CHANNELS = 256
 EXPERIMENT_TAG = 'v1'
 ```
 
-先只运行 MLP 正式训练单元。它先跑无历史三个 seed，再跑完整历史三个 seed，共六次。确认能产生结果表后，再依次运行其他三个模型单元。
+先只运行 MLP 正式训练单元，共三个 seed。确认能产生结果表后，再依次运行其他三个模型单元。
 
-四模型分类总共 **4 × 2 × 3 = 24 次**。匹配种子的月份排列和负样本序列相同。
+四模型分类总共 **4 × 1 × 3 = 12 次**。
 
-分类完成后设 `TASKS=['regression']`，重新执行配置单元，再依次运行四模型。回归额外 24 次，合计 **48 次**。也可一开始同时设两类任务，但每个模型单元会连续训练 12 次。
+分类完成后设 `TASKS=['regression']`，重新执行配置单元，再依次运行四模型。回归额外 12 次，合计 **24 次**。也可一开始同时设两类任务，但每个模型单元会连续训练 6 次。
 
-需要自身历史消融时，把 HISTORY_MODES 改为 `['none','own','all']`；同配置已完成 none/all 会跳过，新增 own。
+若要比较自身历史子组与完整历史，把 `HISTORY_MODES` 改为 `['own', 'all']`。仓库已有 MLP/GraphSAGE 原始分数作为参考，无需为此重跑 `history=none`。
 
-要考察 Node2Vec，统一设 `USE_NODE2VEC=True` 后重跑两边。第一次自动生成嵌入；不同 run 名不会覆盖无嵌入结果。两种嵌入设置都跑会将任务数再翻倍。
+默认固定 `USE_NODE2VEC=True`。首次运行会生成嵌入；如果改为 False，应使用新的 `EXPERIMENT_TAG`。仓库中的原始参考结果包含两种 Node2Vec 设置，但 GatedGCN/Graph Transformer 没有对应原始结果。
 
 ## 5. 路径与结果
 
@@ -96,9 +96,10 @@ Notebook 已带 `--resume`：完成的 seed 自动跳过，中断的 seed 恢复
 - 分类主看 all AUROC，同时看 AP、top-1% precision；不是 accuracy。
 - 回归看 all MAE、事故道路 MAE，以及全零/历史均值参照。
 - mean/std 是三个 seed 的均值/标准差。
-- delta 是历史实验减匹配 baseline：AUROC 正数好，MAE 负数好。
-- smoke、未完成实验不会进入正式表；不匹配配置不会计算增益。
-- reference 中的旧指标仅供参考，不能代替本次 baseline 重跑。
+- reference delta 是历史实验减仓库已提交原始结果：AUROC 正数好，MAE 负数好。
+- MLP/GraphSAGE 有原始参考结果；GatedGCN/Graph Transformer 当前没有对应的已提交基准。
+- 当前仓库保存的历史结果用了 30/40 epochs，原始参考实验用了 100 epochs，且代码/数据来源可能不同；delta 是上下文比较，不是配对消融或因果增益。新运行使用 100 epochs 时仍需留意代码和数据来源差异。
+- smoke 和未完成实验不会进入正式表。无需为生成该表重跑 `history=none`。
 
 可选简单参照单元默认评估验证集。最终方案确定后设 SPLIT='test'，报告预先固定的全零/lag1/mean3/mean12；不要用测试集选窗口。
 
@@ -117,9 +118,7 @@ Notebook 已带 `--resume`：完成的 seed 自动跳过，中断的 seed 恢复
 | GatedGCN | 30–120 分钟 |
 | Graph Transformer | 30–120 分钟 |
 
-四模型分类、none/all、三个 seed，共约 **8.5–33 GPU 小时**；再做回归约 **17–66 GPU 小时**。这些只用于留出排期余量，实际可能明显更快，应在运行 profile 后更新。
-
-只做完整历史而不跑 baseline，分类 12 次，约上述预算一半，但无法在本次代码上完整归因历史增益。
+四模型、单任务、完整历史、三个 seed，共约 **4.25–16.5 GPU 小时**；分类和回归都跑约 **8.5–33 GPU 小时**。这些只用于留出排期余量，实际可能明显更快，应在运行 profile 后更新。
 
 Compute Units 不是 GPU 小时。用 Colab 界面当前显示的每小时消耗率乘以实测小时数估算，不存在本项目能保证的固定扣费数。
 
