@@ -12,6 +12,8 @@
 !/results/**/seed[0-9]*_metrics.json
 !/results/**/seed[0-9]*_history.csv
 !/results/**/seed[0-9]*_history.png
+!/results/**/comparison.csv
+!/results/**/README.md
 
 # Original Drive exports stay local; only selected reports are versioned
 /results*.zip

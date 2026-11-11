@@ -21,6 +21,18 @@ validation/test evaluation are retained. AUROC is averaged monthly using
 positive-road counts; MAE includes all available road-months, including zero-
 accident months. Pooled/balanced and top-risk metrics provide extra diagnostics.
 
+## Accident-history extension
+
+The `jingjing/train_and_results` branch adds past-only physical-road accident
+history features to the existing four-model pipeline. The directed graph remains
+unchanged for message passing; labels and history are aligned to physical roads
+by combining both road directions. See [the integration notes](docs/accident_history.md)
+and [Colab guide](docs/colab_history_guide.md). The current completed
+history-enabled reports are in [`results/history_v1/`](results/history_v1/README.md).
+These reports contain metrics and training records only; datasets, predictions,
+and trained checkpoints are kept outside GitHub. The included history-enabled
+runs do not yet provide a complete matched `history=none` comparison.
+
 ## Colab
 
 1. Push this branch to GitHub, then upload `notebooks/train_baseline.ipynb` to Colab.
@@ -67,7 +79,9 @@ losses, sampling and checkpoint selection. This follows the residual GatedGCN
 formulation in [Benchmarking GNNs](https://github.com/graphdeeplearning/benchmarking-gnns/blob/master/layers/gated_gcn_layer.py),
 implemented with native PyTorch. Hidden width/layer defaults remain 256/2;
 parameter counts differ between architectures. Inspection outputs are deferred.
-No GatedGCN training results are included yet.
+The original no-history GatedGCN benchmark is not included in the root-level
+baseline reports; history-enabled results are documented under
+`results/history_v1/`.
 
 ```bash
 python -m src.model.train --state DE --model gatedgcn --task classification
@@ -98,8 +112,9 @@ This adapts the Week 09 Lab 03 edge-modulated attention score while retaining
 the shared per-road predictor and existing structural inputs/Node2Vec ablation.
 It does not add Laplacian PE or update hidden edge states. Hidden widths must be
 divisible by `--num-heads`; heads are configurable and saved in run configuration.
-No new dependencies or inspection outputs are added. Full-dataset training
-results are not included yet.
+No new dependencies or inspection outputs are added. The original no-history
+Graph Transformer benchmark is not included in the root-level baseline reports;
+history-enabled results are documented under `results/history_v1/`.
 
 ```bash
 python -m src.model.train --state DE --model graph_transformer --task classification --num-heads 4
