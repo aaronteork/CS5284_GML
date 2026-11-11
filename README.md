@@ -23,8 +23,8 @@ accident months. Pooled/balanced and top-risk metrics provide extra diagnostics.
 
 ## Accident-history extension
 
-The `jingjing/train_and_results` branch adds past-only physical-road accident
-history features to the existing four-model pipeline. The directed graph remains
+The four-model pipeline supports past-only physical-road accident history
+features through an archive-backed dataset adapter. The directed graph remains
 unchanged for message passing; labels and history are aligned to physical roads
 by combining both road directions. See [the integration notes](docs/accident_history.md)
 and [Colab guide](docs/colab_history_guide.md). The current completed
@@ -46,6 +46,11 @@ runs do not yet provide a complete matched `history=none` comparison.
    runs both Node2Vec settings for 100 epochs and 3 seeds (6 runs per cell,
    24 runs per state).
    Change `STATE` to `MD` and rerun setup onward to train Maryland.
+
+For the Delaware accident-history experiments, use
+[`notebooks/train_accident_history.ipynb`](notebooks/train_accident_history.ipynb)
+and follow the [history Colab guide](docs/colab_history_guide.md). The benchmark
+data and monthly history archives are not stored in this repository.
 
 `data/`, `weights/` and `results/` persist in
 `My Drive/cs5284_project/`. If Dataverse returns HTTP 403, download the ZIP from

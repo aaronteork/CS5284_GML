@@ -9,13 +9,13 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from scipy import sparse
 
-FEATURE_NAMES = [
-    "acc_lag_1m", "acc_mean_3m", "acc_mean_6m", "acc_mean_12m",
-    "acc_lag_12m", "acc_nonzero_fraction_12m", "neighbor_acc_lag_1m_mean",
-    "neighbor_acc_mean_3m", "neighbor_count", "history_months_available_12m",
-]
+from src.history.features import (
+    FEATURE_NAMES,
+    NeighbourAggregator,
+    build_features,
+)
+
 GROUPS = {"none": [], "own": [0, 1, 2, 3, 4, 5, 9], "all": list(range(10))}
 
 
@@ -27,50 +27,15 @@ def sha256(path):
     return digest.hexdigest()
 
 
-class PhysicalNeighbours:
+class PhysicalNeighbours(NeighbourAggregator):
+    """Use the shared history aggregator for already-merged physical roads."""
+
     def __init__(self, pairs, num_nodes):
-        pairs = np.asarray(pairs)
-        groups = np.arange(len(pairs))
-        distinct = pairs[:, 0] != pairs[:, 1]
-        rows = np.r_[pairs[:, 0], pairs[distinct, 1]]
-        cols = np.r_[groups, groups[distinct]]
-        self.incidence = sparse.csr_matrix(
-            (np.ones(len(rows), np.float32), (rows, cols)),
-            shape=(num_nodes, len(pairs)))
-        self.endpoints = np.asarray(self.incidence.sum(axis=0)).ravel()
-        degrees = np.asarray(self.incidence.sum(axis=1)).ravel()
-        self.degree = np.asarray(self.incidence.T @ degrees).ravel() - self.endpoints
-
-    def mean(self, values):
-        if np.isnan(values).all():
-            return np.full_like(values, np.nan)
-        if not np.isfinite(values).all():
-            raise ValueError("Neighbour history must be entirely known or missing")
-        totals = self.incidence.T @ (self.incidence @ values) - self.endpoints * values
-        return np.divide(totals, self.degree, out=np.zeros_like(totals), where=self.degree > 0)
+        super().__init__(pairs, num_nodes)
+        self.degree = self.edge_degree
 
 
-def build_physical_features(counts, usable, t, neighbours):
-    """Only [0, t) is readable as history; full rolling windows are required."""
-    if not 0 <= t <= len(counts):
-        raise ValueError("Target outside timeline")
-    missing = lambda: np.full(counts.shape[1], np.nan, np.float32)
-
-    def lag(k):
-        return counts[t-k].astype(np.float32) if t >= k and usable[t-k] else missing()
-
-    def rolling(k, nonzero=False):
-        if t < k or not usable[t-k:t].all():
-            return missing()
-        block = counts[t-k:t]
-        return (block > 0).mean(0, dtype=np.float32) if nonzero else block.mean(0, dtype=np.float32)
-
-    lag1, mean3 = lag(1), rolling(3)
-    return np.column_stack([
-        lag1, mean3, rolling(6), rolling(12), lag(12), rolling(12, True),
-        neighbours.mean(lag1), neighbours.mean(mean3), neighbours.degree,
-        np.full(counts.shape[1], usable[max(0, t-12):t].sum(), np.float32),
-    ]).astype(np.float32)
+build_physical_features = build_features
 
 
 class HistoryScaler:

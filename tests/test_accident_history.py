@@ -11,6 +11,7 @@ import torch
 from src.data.dataset import RoadAccidentDataset, WEATHER_COLUMNS
 from src.data.history import (FEATURE_NAMES, HistoryScaler, PhysicalNeighbours,
                               build_physical_features, sha256)
+from src.history.archive_dataset import ArchiveHistoryDataset
 from src.model import train
 from src.model.models import MODEL_NAMES
 
@@ -93,8 +94,8 @@ class HistoryIntegrationTests(unittest.TestCase):
             name: sha256(self.state / name) for name in ("adj_matrix.pt", "accidents_monthly.csv")}}))
 
     def dataset(self, mode="all"):
-        dataset = RoadAccidentDataset("DE", [2009], self.root, download=False,
-                                      history_dir=self.history, history_mode=mode)
+        base = RoadAccidentDataset("DE", [2009], self.root, download=False)
+        dataset = ArchiveHistoryDataset(base, self.history, mode)
         self.datasets.append(dataset)
         return dataset
 

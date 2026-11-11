@@ -14,7 +14,7 @@
 | data/accident_history/outputs/monthly_features/*.npz | 从分离的 y 读取月度计数，重建物理道路历史 |
 | 同 outputs 下 edge_mapping.csv、manifest.json、monthly_coverage_audit.csv | 边对齐、源文件哈希、可用月份校验 |
 
-原历史 X 保留，但其自身历史按方向定义，不能直接拿一个代表方向去预测合并后的标签。活动加载器从原档案 y 重建历史，且逐月检查合并计数与 CSV 标签一致。目标月 y 仍只作监督，只有早于目标月的计数能进入特征窗口。
+原历史 X 保留，但其自身历史按方向定义，不能直接拿一个代表方向去预测合并后的标签。独立的归档加载器包装原有 `RoadAccidentDataset`，从月度档案中的 y 重建历史，并逐月检查合并计数与 CSV 标签一致；基础数据加载器保持不变。目标月 y 仍只作监督，只有早于目标月的计数能进入特征窗口。
 
 节点输入：坐标 2 + 入出度编码 14 + 中心性 1 + 天气 6 + 缺失标记 6 = 29 维；Node2Vec 可加 128 维，共 157 维。
 
@@ -27,7 +27,7 @@
 | all | 历史十项、事故历史八项缺失标记 | 45 |
 
 仓库原有的 `src/history` 分组接口也保留，以兼容此前的实验 notebook。它通过
-`--history-groups` 和 `--history-min-months` 启用；本分支的正式实验 notebook 使用
+`--history-groups` 和 `--history-min-months` 启用；事故历史实验 notebook 使用
 `--history-mode none/own/all`。同一次运行不要同时启用两套历史特征接口。
 
 十项历史：lag1、mean3、mean6、mean12、lag12、12 月非零比例、邻居 lag1 均值、邻居 mean3、邻居数、可用历史月数。

@@ -1,4 +1,3 @@
-import hashlib
 import json
 import shutil
 import urllib.error
@@ -137,21 +136,13 @@ class RoadAccidentDataset:
     """
 
     def __init__(self, state, train_years, data_dir=DATA_DIR,
-                 node_embedding_path=None, download=True, history_dir=None, history_mode="none"):
+                 node_embedding_path=None, download=True):
         from .cache import load_node_cache, load_static_cache
         self.state, self.train_years = state, list(train_years)
         self.dir = Path(data_dir) / state
         self.target_unit = "physical"
         if download:
             download_state(state, data_dir)
-        from .history import sha256
-        sources = [self.dir / "adj_matrix.pt", self.dir / "accidents_monthly.csv"]
-        sources += sorted((self.dir / "Nodes").glob("*.csv"))
-        sources += sorted((self.dir / "Edges").glob("*.pt"))
-        signature = [(str(path.relative_to(self.dir)), sha256(path)) for path in sources]
-        if node_embedding_path is not None:
-            signature.append(("node2vec", sha256(node_embedding_path)))
-        self.data_fingerprint = hashlib.sha256(json.dumps(signature).encode()).hexdigest()
         adj = torch.load(self.dir / "adj_matrix.pt", map_location="cpu", weights_only=False).coalesce()
         self.num_nodes = adj.shape[0]
         self.edge_index = adj.indices().long()
@@ -166,16 +157,6 @@ class RoadAccidentDataset:
         self._node_cache, month_files = load_node_cache(self.dir, WEATHER_COLUMNS, self.num_nodes)
         self.available_months = [tuple(map(int, p.stem.split("_")[-2:])) for p in month_files]
         self._month_position = {ym: i for i, ym in enumerate(self.available_months)}
-        self.history = None
-        history_manifest = Path(history_dir) / "manifest.json" if history_dir is not None else None
-        if history_manifest is not None and history_manifest.is_file():
-            from .history import PhysicalHistory
-            self.history = PhysicalHistory(history_dir, self.dir, self.edge_index, self._road_key,
-                                           self._accidents, self.available_months, self.train_years, history_mode)
-            self.available_months = self.history.months
-        elif history_mode != "none":
-            raise FileNotFoundError(f"History archive not found: {history_manifest}")
-        self.history_mode = history_mode
         self.node_coordinates = torch.from_numpy(np.array(self._node_cache["coords"]))
         static = load_static_cache(self.dir, self.edge_index, self.num_nodes)
         coords = self._standardize_static(self.node_coordinates)
@@ -214,9 +195,6 @@ class RoadAccidentDataset:
         traffic = torch.nan_to_num((raw_traffic - self._traffic_mean) / self._traffic_std,
                                    nan=0.0, posinf=0.0, neginf=0.0)
         edge_attr = torch.cat([self.static_edge_attr, traffic, missing], dim=1)
-        if self.history is not None and self.history_mode != "none":
-            history = torch.from_numpy(self.history.for_edges(year, month))
-            edge_attr = torch.cat([edge_attr, history], dim=1)
         y = torch.zeros(self.num_roads)
         road_ids, counts = self._accidents.get((year, month), (np.array([], dtype=np.int64), np.array([])))
         y[torch.from_numpy(road_ids)] = torch.from_numpy(counts).float()
@@ -255,7 +233,7 @@ class RoadAccidentDataset:
         pos = np.clip(np.searchsorted(self._road_key, key), 0, self.num_roads - 1)
         found = self._road_key[pos] == key
         if not found.all():
-            raise ValueError(f"{(~found).sum()} accident rows do not match the graph")
+            print(f"Warning: {(~found).sum()} accident rows don't match a road; dropped")
         acc = pd.DataFrame({"year": acc["year"].to_numpy()[found], "month": acc["month"].to_numpy()[found],
             "road": pos[found], "count": acc["acc_count"].to_numpy()[found]})
         if (acc["count"] < 0).any():

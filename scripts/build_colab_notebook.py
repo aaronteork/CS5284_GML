@@ -16,7 +16,7 @@ def code(text):
 
 
 md("""
-# 事故历史实验：MLP → GraphSAGE → GatedGCN → Graph Transformer
+# Accident-history experiments: MLP → GraphSAGE → GatedGCN → Graph Transformer
 
 先将整个 `train_historydata` 文件夹放在 **MyDrive/train_historydata**，或上传
 `train_historydata_colab.zip` 到 MyDrive。选择 GPU runtime，然后按顺序运行。

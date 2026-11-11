@@ -138,11 +138,15 @@ def load_dataset(cfg):
     dataset = RoadAccidentDataset(
         cfg.state, train_years=train_years,
         data_dir=data_dir, node_embedding_path=embedding_path,
-        history_dir=history_dir, history_mode=cfg.history_mode,
     )
     if cfg.history_groups or cfg.history_min_months:
         from src.history.integration import HistoryDataset
         dataset = HistoryDataset(dataset, groups=cfg.history_groups, min_history=cfg.history_min_months)
+    elif cfg.history_mode != "none" or (history_dir / "manifest.json").is_file():
+        from src.history.archive_dataset import ArchiveHistoryDataset
+        if not (history_dir / "manifest.json").is_file():
+            raise FileNotFoundError(f"History archive not found: {history_dir / 'manifest.json'}")
+        dataset = ArchiveHistoryDataset(dataset, history_dir, cfg.history_mode)
     return dataset
 
 
