@@ -1,0 +1,134 @@
+{
+  "config": {
+    "state": "MD",
+    "model": "gcn",
+    "task": "regression",
+    "use_node2vec": true,
+    "epochs": 100,
+    "lr": 0.001,
+    "hidden_channels": 256,
+    "num_layers": 2,
+    "dropout": 0.0,
+    "num_heads": 4,
+    "eval_every": 5,
+    "select_protocol": "all",
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "device": "cuda",
+    "run_name": "MD_gcn_regression_n2v"
+  },
+  "data": {
+    "num_nodes": 250565,
+    "num_roads": 317281,
+    "target_unit": "physical",
+    "months": {
+      "train": 36,
+      "valid": 24,
+      "test": 36
+    }
+  },
+  "provenance": {
+    "git_commit": "d5af1890d481411a0aee3e0296585e95f8a25df5",
+    "git_dirty": true,
+    "torch_version": "2.14.1+cu132",
+    "numpy_version": "2.5.2",
+    "splits": {
+      "train": [
+        2015,
+        2016,
+        2017
+      ],
+      "valid": [
+        2018,
+        2019
+      ],
+      "test": [
+        2020,
+        2021,
+        2022
+      ]
+    },
+    "embedding": {
+      "backend": "baseline-fw.torch-skipgram-v2",
+      "state": "MD",
+      "parameters": {
+        "dimensions": 128,
+        "walk_length": 20,
+        "walks_per_node": 10,
+        "window_size": 5,
+        "epochs": 1,
+        "batch_size": 1024,
+        "lr": 0.01,
+        "seed": 0,
+        "p": 1,
+        "q": 1,
+        "negatives_per_pair": 1,
+        "context_direction": "forward"
+      },
+      "num_nodes": 250565,
+      "torch_version": "2.14.1+cu132",
+      "device": "cuda"
+    }
+  },
+  "seed": 2,
+  "best_epoch": 70,
+  "valid": {
+    "all": {
+      "AUROC": 0.8689336782586179,
+      "PR-AUC": 0.18786048546249023,
+      "precision@0.5": 0.09114583019515927,
+      "recall@0.5": 0.808997416932728,
+      "AUROC (pooled)": 0.8689017763422898,
+      "precision@top1%": 0.26997321147179326,
+      "recall@top1%": 0.11012254115790954,
+      "MAE": 0.23159639459912432,
+      "MSE": 0.21206222674171768,
+      "MAE (accident roads)": 0.4400840132003382,
+      "MAE (no-accident roads)": 0.2263479091762187
+    },
+    "balanced": {
+      "AUROC": 0.8691068124256339,
+      "PR-AUC": 0.8562269974608911,
+      "precision@0.5": 0.7998900145942173,
+      "recall@0.5": 0.808997416932728,
+      "AUROC (pooled)": 0.869100143942404,
+      "precision@top1%": 0.9965873896541053,
+      "recall@top1%": 0.01998672589584953,
+      "MAE": 0.3329519601248005,
+      "MSE": 1.2116284211127533,
+      "MAE (accident roads)": 0.4400840132003382,
+      "MAE (no-accident roads)": 0.22581990704926289
+    }
+  },
+  "test": {
+    "all": {
+      "AUROC": 0.866803883399797,
+      "PR-AUC": 0.1729499765805825,
+      "precision@0.5": 0.08273694476317996,
+      "recall@0.5": 0.806096169902513,
+      "AUROC (pooled)": 0.8666228920883999,
+      "precision@top1%": 0.24753125328290781,
+      "recall@top1%": 0.1112156790117862,
+      "MAE": 0.23207407859627122,
+      "MSE": 0.1697661328226473,
+      "MAE (accident roads)": 0.42504244967219174,
+      "MAE (no-accident roads)": 0.22766570283987553
+    },
+    "balanced": {
+      "AUROC": 0.8670744945260447,
+      "PR-AUC": 0.8536799269429184,
+      "precision@0.5": 0.7982113953677935,
+      "recall@0.5": 0.806096169902513,
+      "AUROC (pooled)": 0.8670083744868914,
+      "precision@top1%": 0.9935073754016739,
+      "recall@top1%": 0.019939214880903344,
+      "MAE": 0.32605016912622287,
+      "MSE": 0.3652812495283825,
+      "MAE (accident roads)": 0.42504244967219174,
+      "MAE (no-accident roads)": 0.22705788858025394
+    }
+  }
+}

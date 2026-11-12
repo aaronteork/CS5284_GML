@@ -1,0 +1,124 @@
+{
+  "config": {
+    "state": "DE",
+    "model": "gcn",
+    "task": "classification",
+    "use_node2vec": true,
+    "epochs": 100,
+    "lr": 0.001,
+    "hidden_channels": 256,
+    "num_layers": 2,
+    "dropout": 0.0,
+    "num_heads": 4,
+    "eval_every": 5,
+    "select_protocol": "all",
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "device": "cuda",
+    "run_name": "DE_gcn_classification_n2v"
+  },
+  "data": {
+    "num_nodes": 49023,
+    "num_roads": 65252,
+    "target_unit": "physical",
+    "months": {
+      "train": 48,
+      "valid": 60,
+      "test": 57
+    }
+  },
+  "provenance": {
+    "git_commit": "d5af1890d481411a0aee3e0296585e95f8a25df5",
+    "git_dirty": true,
+    "torch_version": "2.14.1+cu132",
+    "numpy_version": "2.5.2",
+    "splits": {
+      "train": [
+        2009,
+        2010,
+        2011,
+        2012
+      ],
+      "valid": [
+        2013,
+        2014,
+        2015,
+        2016,
+        2017
+      ],
+      "test": [
+        2018,
+        2019,
+        2020,
+        2021,
+        2022
+      ]
+    },
+    "embedding": {
+      "backend": "baseline-fw.torch-skipgram-v2",
+      "state": "DE",
+      "parameters": {
+        "dimensions": 128,
+        "walk_length": 20,
+        "walks_per_node": 10,
+        "window_size": 5,
+        "epochs": 1,
+        "batch_size": 1024,
+        "lr": 0.01,
+        "seed": 0,
+        "p": 1,
+        "q": 1,
+        "negatives_per_pair": 1,
+        "context_direction": "forward"
+      },
+      "num_nodes": 49023,
+      "torch_version": "2.14.1+cu132",
+      "device": "cuda"
+    }
+  },
+  "seed": 0,
+  "best_epoch": 20,
+  "valid": {
+    "all": {
+      "AUROC": 0.878602521130083,
+      "PR-AUC": 0.26764443325804016,
+      "precision@0.5": 0.12312301476542262,
+      "recall@0.5": 0.8180266952468922,
+      "AUROC (pooled)": 0.8783746959403366,
+      "precision@top1%": 0.46600306278713627,
+      "recall@top1%": 0.12900818329119138
+    },
+    "balanced": {
+      "AUROC": 0.8792833124046443,
+      "PR-AUC": 0.867889720622321,
+      "precision@0.5": 0.7901045391085232,
+      "recall@0.5": 0.8180266952468922,
+      "AUROC (pooled)": 0.8792091135428115,
+      "precision@top1%": 0.9757958148282925,
+      "recall@top1%": 0.019706509854430995
+    }
+  },
+  "test": {
+    "all": {
+      "AUROC": 0.8730938405489119,
+      "PR-AUC": 0.260852104398399,
+      "precision@0.5": 0.12478098962329663,
+      "recall@0.5": 0.8111149385692962,
+      "AUROC (pooled)": 0.8727390423307073,
+      "precision@top1%": 0.45520002149324307,
+      "recall@top1%": 0.12172800526955592
+    },
+    "balanced": {
+      "AUROC": 0.8732515524519917,
+      "PR-AUC": 0.8615545729745783,
+      "precision@0.5": 0.7860679908752017,
+      "recall@0.5": 0.8111149385692962,
+      "AUROC (pooled)": 0.8731591919151511,
+      "precision@top1%": 0.980194618794537,
+      "recall@top1%": 0.019775620743315365
+    }
+  }
+}

@@ -468,7 +468,7 @@ def parse_args():
     parser.add_argument("--num-layers", type=int, default=defaults.num_layers)
     parser.add_argument("--dropout", type=float, default=defaults.dropout)
     parser.add_argument("--num-heads", type=int, default=defaults.num_heads,
-                        help="Graph Transformer attention heads; must divide hidden channels")
+                        help="GAT and Graph Transformer attention heads; must divide hidden channels")
     parser.add_argument("--eval-every", type=int, default=defaults.eval_every)
     parser.add_argument("--select-protocol", default=defaults.select_protocol, choices=["all", "balanced"])
     parser.add_argument("--seeds", type=int, nargs="+", default=defaults.seeds)
