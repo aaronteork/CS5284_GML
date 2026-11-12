@@ -7,10 +7,12 @@ predictions go to `results/<run>/`.
 """
 import argparse
 import csv
+import hashlib
 import json
 import subprocess
 import time
 from dataclasses import asdict, dataclass, field
+from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
@@ -53,20 +55,136 @@ class Config:
     seeds: list = field(default_factory=lambda: [0, 1, 2])
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
     run_name: str = ""
+    # Keep the original repository notebooks working without a history archive.
+    # The history notebook passes `none`/`all` explicitly for matched experiments.
+    history_mode: str = "none"
+    data_dir: str = "data"
+    history_dir: str = "data/accident_history/outputs"
+    output_dir: str = ""
+    resume: bool = False
+    smoke_test: bool = False
+    # Backwards-compatible optional feature-group path already present on main.
+    history_groups: list = field(default_factory=list)
+    history_min_months: int = 0
 
     def __post_init__(self):
+        if self.epochs < 1 or self.eval_every < 1 or not self.seeds:
+            raise ValueError("epochs, eval_every and seeds must be nonempty/positive")
+        if self.history_mode not in ("none", "own", "all"):
+            raise ValueError("history_mode must be none, own or all")
+        if self.history_groups and self.history_mode != "none":
+            raise ValueError("Choose either history_mode or history_groups, not both")
+        if self.history_min_months < 0:
+            raise ValueError("history_min_months must be nonnegative")
+        if self.smoke_test:
+            self.epochs, self.eval_every, self.seeds = 2, 1, [self.seeds[0]]
         if not self.run_name:
             embedding = "n2v" if self.use_node2vec else "no_n2v"
             self.run_name = f"{self.state}_{self.model}_{self.task}_{embedding}"
+            if self.history_groups or self.history_min_months:
+                groups = "-".join(self.history_groups) or "none"
+                self.run_name += f"_groups_{groups}_warmup{self.history_min_months}"
+            else:
+                self.run_name += f"_hist_{self.history_mode}"
+        if self.smoke_test and not self.run_name.endswith("_smoke"):
+            self.run_name += "_smoke"
+        if Path(self.run_name).name != self.run_name or self.run_name in (".", ".."):
+            raise ValueError("run_name must be one directory name")
+
+
+def project_path(value):
+    path = Path(value).expanduser()
+    return path if path.is_absolute() else ROOT / path
+
+
+def output_paths(cfg):
+    if cfg.output_dir:
+        root = project_path(cfg.output_dir)
+        return root / "weights", root / "results"
+    return WEIGHTS_DIR, RESULTS_DIR
+
+
+def atomic_torch_save(value, path):
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    torch.save(value, temporary)
+    temporary.replace(path)
+
+
+def atomic_json(value, path):
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
+    temporary.replace(path)
+
+
+@lru_cache(maxsize=1024)
+def _cached_file_sha256(path, size, mtime_ns):
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def dataset_fingerprint(dataset, cfg):
+    base = dataset
+    while hasattr(base, "base"):
+        base = base.base
+    state_dir = Path(base.dir)
+    files = [state_dir / "adj_matrix.pt", state_dir / "accidents_monthly.csv"]
+    files.extend(sorted((state_dir / "Nodes").glob("*.csv")))
+    files.extend(sorted((state_dir / "Edges").glob("*.pt")))
+    embedding = None
+    if cfg.use_node2vec:
+        embedding = node2vec_path(cfg.state, project_path(cfg.data_dir))
+        files.append(embedding)
+
+    signatures = []
+    for path in files:
+        if not path.is_file():
+            raise FileNotFoundError(f"Experiment input is missing: {path}")
+        stat = path.stat()
+        if embedding is not None and path == embedding:
+            label = f"node2vec/{cfg.state}/{path.name}"
+        else:
+            label = path.relative_to(state_dir).as_posix()
+        signatures.append([label, _cached_file_sha256(str(path.resolve()),
+                                                       stat.st_size, stat.st_mtime_ns)])
+    return hashlib.sha256(json.dumps(signatures, sort_keys=True).encode()).hexdigest()
+
+
+def experiment_identity(cfg, dataset):
+    settings = asdict(cfg)
+    for key in ("device", "resume", "data_dir", "history_dir", "output_dir", "seeds"):
+        settings.pop(key)
+    digest = hashlib.sha256()
+    for path in sorted((ROOT / "src").rglob("*.py")):
+        digest.update(str(path.relative_to(ROOT)).encode())
+        digest.update(path.read_bytes())
+    history = getattr(dataset, "history", None)
+    return {"settings": settings, "source_sha256": digest.hexdigest(),
+            "data_fingerprint": dataset_fingerprint(dataset, cfg),
+            "history_fingerprint": getattr(history, "fingerprint", None)}
 
 
 def load_dataset(cfg):
     train_years = SPLITS[cfg.state][0]
-    embedding_path = generate_node2vec(cfg.state, device=cfg.device) if cfg.use_node2vec else None
-    return RoadAccidentDataset(
+    if cfg.state != "DE" and (cfg.history_mode != "none" or cfg.history_groups or cfg.history_min_months):
+        raise ValueError("Accident-history features are currently validated for Delaware only")
+    data_dir, history_dir = project_path(cfg.data_dir), project_path(cfg.history_dir)
+    embedding_path = generate_node2vec(cfg.state, data_dir=data_dir, device=cfg.device) if cfg.use_node2vec else None
+    dataset = RoadAccidentDataset(
         cfg.state, train_years=train_years,
-        node_embedding_path=embedding_path,
+        data_dir=data_dir, node_embedding_path=embedding_path,
     )
+    if cfg.history_groups or cfg.history_min_months:
+        from src.history.integration import HistoryDataset
+        dataset = HistoryDataset(dataset, groups=cfg.history_groups, min_history=cfg.history_min_months)
+    elif cfg.history_mode != "none" or (history_dir / "manifest.json").is_file():
+        from src.history.archive_dataset import ArchiveHistoryDataset
+        if not (history_dir / "manifest.json").is_file():
+            raise FileNotFoundError(f"History archive not found: {history_dir / 'manifest.json'}")
+        dataset = ArchiveHistoryDataset(dataset, history_dir, cfg.history_mode)
+    return dataset
 
 
 def selection_score(results, cfg):
@@ -115,6 +233,8 @@ def save_curves(history_path, cfg):
 
 def run_provenance(cfg):
     def git(*args):
+        if not (ROOT / ".git").exists():
+            return None  # A parent directory's unrelated repository is not this experiment.
         try:
             return subprocess.check_output(["git", *args], cwd=ROOT, text=True,
                                            stderr=subprocess.DEVNULL, timeout=10).strip()
@@ -122,10 +242,12 @@ def run_provenance(cfg):
             return None
 
     status = git("status", "--porcelain")
-    embedding_meta = node2vec_path(cfg.state).with_suffix(".json")
+    embedding_meta = node2vec_path(cfg.state, project_path(cfg.data_dir)).with_suffix(".json")
     return {"git_commit": git("rev-parse", "HEAD"),
             "git_dirty": None if status is None else bool(status),
             "torch_version": str(torch.__version__), "numpy_version": np.__version__,
+            "device": cfg.device,
+            "gpu": torch.cuda.get_device_name() if str(cfg.device).startswith("cuda") else None,
             "splits": {name: list(years) for name, years in
                        zip(("train", "valid", "test"), SPLITS[cfg.state])},
             "embedding": json.loads(embedding_meta.read_text(encoding="utf-8"))
@@ -141,7 +263,10 @@ def train_epoch(model, optimizer, dataset, months, cfg, rng):
         if len(positive) < MIN_ACCIDENT_ROADS:
             continue
         negative_pool = torch.nonzero(data.y == 0).squeeze(1)
-        negative = negative_pool[torch.randperm(len(negative_pool), device=cfg.device)[:len(positive)]]
+        # Dedicated numpy RNG is independent of model width/initialisation/dropout.
+        # Paired feature ablations therefore see the same sampled negatives.
+        positions = rng.choice(len(negative_pool), size=min(len(positive), len(negative_pool)), replace=False)
+        negative = negative_pool[torch.as_tensor(positions, device=cfg.device)]
         road_ids = torch.cat([positive, negative])
 
         out = model(data, road_ids)
@@ -163,6 +288,8 @@ def train_seed(cfg, seed, dataset):
     rng = np.random.default_rng(seed)
     train_years, valid_years, test_years = SPLITS[cfg.state]
     train_months, valid_months = dataset.months(train_years), dataset.months(valid_years)
+    if cfg.smoke_test:
+        train_months, valid_months = train_months[-2:], valid_months[:2]
 
     sample = dataset.monthly(*train_months[0])
     model = build_model(
@@ -172,18 +299,42 @@ def train_seed(cfg, seed, dataset):
     ).to(cfg.device)
     optimizer = torch.optim.Adam(model.parameters(), lr=cfg.lr)
 
-    weights_path = WEIGHTS_DIR / cfg.run_name / f"seed{seed}.pt"
+    weights_dir, result_root = output_paths(cfg)
+    weights_path = weights_dir / cfg.run_name / f"seed{seed}.pt"
+    last_path = weights_path.with_name(f"seed{seed}_last.pt")
     weights_path.parent.mkdir(parents=True, exist_ok=True)
     best_score, best_epoch = -float("inf"), 0
-    results_dir = RESULTS_DIR / cfg.run_name
+    results_dir = result_root / cfg.run_name
     results_dir.mkdir(parents=True, exist_ok=True)
     history_path = results_dir / f"seed{seed}_history.csv"
+    identity = experiment_identity(cfg, dataset)
+    history_rows, start_epoch, elapsed_before, best_state = [], 1, 0.0, None
+    if cfg.resume and last_path.exists():
+        saved = torch.load(last_path, map_location="cpu", weights_only=False)
+        if saved["identity"] != identity:
+            raise ValueError("Resume rejected: code, data or training settings changed; use a new run name")
+        model.load_state_dict(saved["model"])
+        optimizer.load_state_dict(saved["optimizer"])
+        rng.bit_generator.state = saved["numpy_rng"]
+        torch.set_rng_state(saved["torch_rng"])
+        if torch.cuda.is_available() and saved["cuda_rng"] is not None:
+            torch.cuda.set_rng_state_all(saved["cuda_rng"])
+        start_epoch = saved["epoch"] + 1
+        best_score, best_epoch, best_state = saved["best_score"], saved["best_epoch"], saved["best_state"]
+        history_rows, elapsed_before = saved["history"], saved["elapsed_seconds"]
+        print(f"Resuming seed {seed} at epoch {start_epoch}", flush=True)
+    elif history_path.exists():
+        if not cfg.resume:
+            raise FileExistsError(f"Existing history without a resumable checkpoint: {history_path}; use --resume or a new run name")
+        print(f"Seed {seed} has no completed checkpoint; restarting it from its original seed", flush=True)
+    # Reconcile the CSV with the last atomically completed epoch after an interruption.
     with open(history_path, "w", newline="", encoding="utf-8") as stream:
-        csv.DictWriter(stream, fieldnames=HISTORY_COLUMNS).writeheader()
-    history_path.with_suffix(".png").unlink(missing_ok=True)
+        writer = csv.DictWriter(stream, fieldnames=HISTORY_COLUMNS)
+        writer.writeheader()
+        writer.writerows(history_rows)
     training_start = time.perf_counter()
 
-    progress = tqdm(range(1, cfg.epochs + 1), desc=f"{cfg.state} {cfg.model} {cfg.task} seed {seed}",
+    progress = tqdm(range(start_epoch, cfg.epochs + 1), desc=f"{cfg.state} {cfg.model} {cfg.task} seed {seed}",
                     unit="epoch", dynamic_ncols=True)
     for epoch in progress:
         start = time.time()
@@ -197,30 +348,46 @@ def train_seed(cfg, seed, dataset):
                 raise ValueError("Validation selection metric is undefined; check split labels")
             if score > best_score:
                 best_score, best_epoch, is_best = score, epoch, True
-                torch.save({"state_dict": model.state_dict(), "config": asdict(cfg), "seed": seed, "epoch": epoch},
-                           weights_path)
+                best_state = {name: value.detach().cpu().clone() for name, value in model.state_dict().items()}
+                atomic_torch_save({"state_dict": best_state, "config": asdict(cfg), "seed": seed,
+                                   "epoch": epoch, "identity": identity,
+                                   "history_preprocessing": getattr(getattr(dataset, "history", None), "metadata", None)},
+                                  weights_path)
             key = "AUROC" if cfg.task == "classification" else "MAE"
             tqdm.write(f"[seed {seed}] epoch {epoch:3d} | loss {loss:.4f} | "
                   f"valid {key} ({cfg.select_protocol}) {valid[cfg.select_protocol][key]:.4f} | "
                   f"best epoch {best_epoch} | {time.time() - start:.1f}s")
         metrics = valid[cfg.select_protocol] if valid is not None else {}
-        with open(history_path, "a", newline="", encoding="utf-8") as stream:
-            csv.DictWriter(stream, fieldnames=HISTORY_COLUMNS).writerow({
+        row = {
                 "epoch": epoch, "train_loss": loss, "valid_auroc": metrics.get("AUROC", ""),
                 "valid_mae": metrics.get("MAE", ""), "epoch_seconds": time.time() - start,
-                "elapsed_seconds": time.perf_counter() - training_start,
-                "is_best": is_best, "best_epoch": best_epoch})
+                "elapsed_seconds": elapsed_before + time.perf_counter() - training_start,
+                "is_best": is_best, "best_epoch": best_epoch}
+        history_rows.append(row)
+        with open(history_path, "a", newline="", encoding="utf-8") as stream:
+            csv.DictWriter(stream, fieldnames=HISTORY_COLUMNS).writerow(row)
+        atomic_torch_save({"model": model.state_dict(), "optimizer": optimizer.state_dict(),
+                           "epoch": epoch, "best_score": best_score, "best_epoch": best_epoch,
+                           "best_state": best_state, "history": history_rows, "identity": identity,
+                           "elapsed_seconds": row["elapsed_seconds"], "numpy_rng": rng.bit_generator.state,
+                           "torch_rng": torch.get_rng_state(),
+                           "cuda_rng": torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None}, last_path)
         if valid is not None or epoch == 1:
             save_curves(history_path, cfg)
 
-    model.load_state_dict(torch.load(weights_path, map_location=cfg.device)["state_dict"])
+    model.load_state_dict(best_state)
+    atomic_torch_save({"state_dict": best_state, "config": asdict(cfg), "seed": seed,
+                       "epoch": best_epoch, "identity": identity,
+                       "history_preprocessing": getattr(getattr(dataset, "history", None), "metadata", None)}, weights_path)
     valid = evaluate(model, dataset, valid_months, cfg.task, cfg.device)
+    if cfg.smoke_test:
+        return {"seed": seed, "best_epoch": best_epoch, "valid": valid, "smoke_only": True}
     test, predictions = evaluate(model, dataset, dataset.months(test_years), cfg.task, cfg.device,
                                  return_predictions=True)
 
-    results_dir = RESULTS_DIR / cfg.run_name
+    results_dir = result_root / cfg.run_name
     results_dir.mkdir(parents=True, exist_ok=True)
-    torch.save(predictions, results_dir / f"seed{seed}_test_predictions.pt")
+    atomic_torch_save(predictions, results_dir / f"seed{seed}_test_predictions.pt")
     return {"seed": seed, "best_epoch": best_epoch, "valid": valid, "test": test}
 
 
@@ -228,6 +395,8 @@ def summarise(runs):
     """Mean and standard deviation across seeds for every split / protocol / metric."""
     summary = {}
     for split in ("valid", "test"):
+        if split not in runs[0]:
+            continue
         for protocol, metrics in runs[0][split].items():
             for metric in metrics:
                 values = [r[split][protocol][metric] for r in runs]
@@ -241,34 +410,46 @@ def run(cfg):
     dataset = load_dataset(cfg)
     data_summary = {"num_nodes": dataset.num_nodes, "num_roads": dataset.num_roads,
                     "target_unit": dataset.target_unit,
+                    "history": getattr(getattr(dataset, "history", None), "metadata", None),
                     "months": {split: len(dataset.months(years)) for split, years in
                                zip(("train", "valid", "test"), SPLITS[cfg.state])}}
     print(f"Data coverage: {data_summary}", flush=True)
-    results_dir = RESULTS_DIR / cfg.run_name
+    results_dir = output_paths(cfg)[1] / cfg.run_name
     results_dir.mkdir(parents=True, exist_ok=True)
     provenance = run_provenance(cfg)
-    with open(results_dir / "run_metadata.json", "w", encoding="utf-8") as stream:
-        json.dump({"config": asdict(cfg), "data": data_summary, "provenance": provenance}, stream, indent=2)
+    identity = experiment_identity(cfg, dataset)
+    metadata_path = results_dir / "run_metadata.json"
+    if metadata_path.exists():
+        old = json.loads(metadata_path.read_text())
+        if not cfg.resume:
+            raise FileExistsError("This run already exists. Use --resume or a new --run-name")
+        if old.get("identity") != identity:
+            raise ValueError("Run identity changed; use a new run name")
+    atomic_json({"config": asdict(cfg), "data": data_summary, "provenance": provenance,
+                 "identity": identity}, metadata_path)
     runs = []
     for seed in cfg.seeds:
-        result = train_seed(cfg, seed, dataset)
+        seed_path = results_dir / f"seed{seed}_metrics.json"
+        if cfg.resume and seed_path.exists():
+            saved = json.loads(seed_path.read_text())
+            if saved.get("identity") != identity:
+                raise ValueError("Completed seed does not match this experiment")
+            result = {key: saved[key] for key in ("seed", "best_epoch", "valid", "test", "smoke_only") if key in saved}
+            print(f"Seed {seed} already complete; skipping", flush=True)
+        else:
+            result = train_seed(cfg, seed, dataset)
         runs.append(result)
-        with open(results_dir / f"seed{seed}_metrics.json", "w") as f:
-            json.dump({"config": asdict(cfg), "data": data_summary, "provenance": provenance, **result}, f, indent=2)
+        atomic_json({"config": asdict(cfg), "data": data_summary, "provenance": provenance,
+                     "identity": identity, **result}, seed_path)
         # Persist completed seeds even if a later Colab run is interrupted.
-        with open(results_dir / "metrics.json", "w") as f:
-            json.dump({"config": asdict(cfg), "data": data_summary, "summary": summarise(runs), "runs": runs,
-                       "provenance": provenance, "complete": len(runs) == len(cfg.seeds)}, f, indent=2)
+        atomic_json({"config": asdict(cfg), "data": data_summary, "summary": summarise(runs), "runs": runs,
+                     "identity": identity, "provenance": provenance, "smoke_only": cfg.smoke_test,
+                     "complete": len(runs) == len(cfg.seeds)}, results_dir / "metrics.json")
     summary = summarise(runs)
 
-    results_dir = RESULTS_DIR / cfg.run_name
-    results_dir.mkdir(parents=True, exist_ok=True)
-    with open(results_dir / "metrics.json", "w") as f:
-        json.dump({"config": asdict(cfg), "data": data_summary, "summary": summary,
-                   "runs": runs, "provenance": provenance, "complete": True}, f, indent=2)
-
-    print(f"\n{cfg.run_name}: test results over seeds {cfg.seeds}")
-    for protocol, metrics in summary["test"].items():
+    split = "valid" if cfg.smoke_test else "test"
+    print(f"\n{cfg.run_name}: {split} results over seeds {cfg.seeds}")
+    for protocol, metrics in summary[split].items():
         print(f"  {protocol}: " + ", ".join(f"{k} {v['mean']:.4f} ± {v['std']:.4f}" for k, v in metrics.items()))
     return summary
 
@@ -293,6 +474,16 @@ def parse_args():
     parser.add_argument("--seeds", type=int, nargs="+", default=defaults.seeds)
     parser.add_argument("--device", default=defaults.device)
     parser.add_argument("--run-name", default="")
+    parser.add_argument("--history-mode", choices=["none", "own", "all"], default=defaults.history_mode)
+    parser.add_argument("--data-dir", default=defaults.data_dir, help="Relative to this project or absolute")
+    parser.add_argument("--history-dir", default=defaults.history_dir, help="Original history outputs directory")
+    parser.add_argument("--output-dir", default=defaults.output_dir, help="Root containing weights/ and results/")
+    parser.add_argument("--resume", action="store_true", help="Resume completed epochs and skip completed seeds")
+    parser.add_argument("--smoke-test", action="store_true", help="Two epochs, two train/valid months, no test evaluation")
+    parser.add_argument("--history-groups", nargs="*", default=[],
+                        choices=["own_history", "neighbour_history", "history_coverage"])
+    parser.add_argument("--history-min-months", type=int, default=0,
+                        help="Common warm-up for the legacy feature-group integration and its control")
     return Config(**{k.replace("-", "_"): v for k, v in vars(parser.parse_args()).items()})
 
 
