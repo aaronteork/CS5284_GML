@@ -1,0 +1,189 @@
+{
+  "config": {
+    "state": "DE",
+    "model": "graphsage",
+    "task": "classification",
+    "use_node2vec": false,
+    "epochs": 100,
+    "lr": 0.001,
+    "hidden_channels": 256,
+    "num_layers": 2,
+    "dropout": 0.0,
+    "eval_every": 5,
+    "select_protocol": "all",
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "device": "cuda",
+    "run_name": "DE_graphsage_classification_no_n2v_osm_all"
+  },
+  "data": {
+    "num_nodes": 49023,
+    "num_roads": 65252,
+    "target_unit": "physical",
+    "months": {
+      "train": 48,
+      "valid": 60,
+      "test": 57
+    }
+  },
+  "provenance": {
+    "git_commit": null,
+    "git_dirty": null,
+    "torch_version": "2.5.1+cu124",
+    "numpy_version": "1.26.4",
+    "splits": {
+      "train": [
+        2009,
+        2010,
+        2011,
+        2012
+      ],
+      "valid": [
+        2013,
+        2014,
+        2015,
+        2016,
+        2017
+      ],
+      "test": [
+        2018,
+        2019,
+        2020,
+        2021,
+        2022
+      ]
+    },
+    "embedding": null,
+    "osm": {
+      "groups": [
+        "road_character",
+        "intersection_control",
+        "cycle_pedestrian_lighting",
+        "nearby_places",
+        "road_shape"
+      ],
+      "num_features": 70,
+      "feature_names": [
+        "road_character_maxspeed_mph",
+        "road_character_maxspeed_mph__missing",
+        "road_character_lanes",
+        "road_character_lanes__missing",
+        "road_character_surface=asphalt",
+        "road_character_surface=concrete",
+        "road_character_surface=gravel",
+        "road_character_surface=mixed",
+        "road_character_surface=other",
+        "road_character_surface=paved",
+        "road_character_surface=unpaved",
+        "road_character_surface__missing",
+        "road_character_bridge",
+        "road_character_tunnel",
+        "intersection_control_signal_start",
+        "intersection_control_signal_end",
+        "intersection_control_stop_start",
+        "intersection_control_stop_end",
+        "intersection_control_crossing_start",
+        "intersection_control_crossing_end",
+        "intersection_control_roundabout",
+        "intersection_control_signal_midblock",
+        "intersection_control_stop_midblock",
+        "intersection_control_give_way_midblock",
+        "intersection_control_crossing_midblock",
+        "intersection_control_traffic_calming_midblock",
+        "cycle_pedestrian_lighting_cycleway_any",
+        "cycle_pedestrian_lighting_cycleway_any__missing",
+        "cycle_pedestrian_lighting_sidewalk_any",
+        "cycle_pedestrian_lighting_sidewalk_any__missing",
+        "cycle_pedestrian_lighting_lit",
+        "cycle_pedestrian_lighting_lit__missing",
+        "nearby_places_school_100m",
+        "nearby_places_school_250m",
+        "nearby_places_school_500m",
+        "nearby_places_school_1000m",
+        "nearby_places_school_nearest_m",
+        "nearby_places_bus_stop_100m",
+        "nearby_places_bus_stop_250m",
+        "nearby_places_bus_stop_500m",
+        "nearby_places_bus_stop_1000m",
+        "nearby_places_bus_stop_nearest_m",
+        "nearby_places_parking_100m",
+        "nearby_places_parking_250m",
+        "nearby_places_parking_500m",
+        "nearby_places_parking_1000m",
+        "nearby_places_parking_nearest_m",
+        "nearby_places_food_100m",
+        "nearby_places_food_250m",
+        "nearby_places_food_500m",
+        "nearby_places_food_1000m",
+        "nearby_places_food_nearest_m",
+        "nearby_places_bar_pub_100m",
+        "nearby_places_bar_pub_250m",
+        "nearby_places_bar_pub_500m",
+        "nearby_places_bar_pub_1000m",
+        "nearby_places_bar_pub_nearest_m",
+        "nearby_places_crossing_100m",
+        "nearby_places_crossing_250m",
+        "nearby_places_crossing_500m",
+        "nearby_places_crossing_1000m",
+        "nearby_places_crossing_nearest_m",
+        "nearby_places_signal_100m",
+        "nearby_places_signal_250m",
+        "nearby_places_signal_500m",
+        "nearby_places_signal_1000m",
+        "nearby_places_signal_nearest_m",
+        "road_shape_sinuosity",
+        "road_shape_sinuosity__missing",
+        "osm_unmatched"
+      ],
+      "table_file": "DE_osm_features.parquet",
+      "baseline_commit": "299962d",
+      "snapshot_date": "2026-10-18",
+      "pipeline_version": "3.1"
+    }
+  },
+  "seed": 0,
+  "best_epoch": 10,
+  "valid": {
+    "all": {
+      "AUROC": 0.8752781199275523,
+      "PR-AUC": 0.25846636811332563,
+      "precision@0.5": 0.11820721769499418,
+      "recall@0.5": 0.8233572833743469,
+      "AUROC (pooled)": 0.8745526459015848,
+      "precision@top1%": 0.44956610515569173,
+      "recall@top1%": 0.12446953924588783
+    },
+    "balanced": {
+      "AUROC": 0.875994367884697,
+      "PR-AUC": 0.8637711375403428,
+      "precision@0.5": 0.7830305712580552,
+      "recall@0.5": 0.8233572833743469,
+      "AUROC (pooled)": 0.8756726960242935,
+      "precision@top1%": 0.9782048697286135,
+      "recall@top1%": 0.019755796173025676
+    }
+  },
+  "test": {
+    "all": {
+      "AUROC": 0.8712083317249778,
+      "PR-AUC": 0.25398203690947696,
+      "precision@0.5": 0.11994231054473616,
+      "recall@0.5": 0.8182483637616259,
+      "AUROC (pooled)": 0.8704045816185538,
+      "precision@top1%": 0.4439966685473254,
+      "recall@top1%": 0.11867107081087556
+    },
+    "balanced": {
+      "AUROC": 0.8712025047976717,
+      "PR-AUC": 0.8585609933483922,
+      "precision@0.5": 0.778854035739658,
+      "recall@0.5": 0.8182483637616259,
+      "AUROC (pooled)": 0.870881809333885,
+      "precision@top1%": 0.9794028656303186,
+      "recall@top1%": 0.01975959314023333
+    }
+  }
+}

@@ -1,137 +1,249 @@
-"""Report tables/figures from traceable saved OSM notebook outputs.
+"""Tables and figures for the report's OpenStreetMap section (§5.1).
 
-The exported evidence contains rounded displays, not raw prediction tensors.
-Loading it never executes either source notebook or triggers training. Use
-src.osm.comparison for fresh analysis when the original result files are present.
+Why: the report must render from small committed files, without the OSM data, the
+prediction tensors or a GPU. Everything here reads `metrics.json`,
+`permutation_importance.json` and `run_metadata.json` under `results/`, written by
+`osm_baseline_comparison.ipynb`. Nothing here trains, rebuilds features or reads the
+OSM notebooks.
+
+Takes: the repository folder. Returns: pandas tables and matplotlib figures.
 """
 
-import hashlib
 import json
 from pathlib import Path
-import re
 
 import matplotlib.pyplot as plt
+from matplotlib.patches import FancyBboxPatch
 import numpy as np
 import pandas as pd
 
+# The four runs of the 2x2 comparison, keyed by (Node2Vec setting, OSM setting).
+# The no-Node2Vec control is the team's committed baseline run, not retrained here.
+COMPARISON_RUNS = {
+    ("Without", "Baseline"): "DE_graphsage_classification_no_n2v",
+    ("Without", "With OSM"): "osm/DE_graphsage_classification_no_n2v_osm_all",
+    ("With", "Baseline"): "osm/DE_graphsage_classification_n2v_osm_none",
+    ("With", "With OSM"): "osm/DE_graphsage_classification_n2v_osm_all",
+}
 
-def load_evidence(project_dir):
-    """Read the bundled evidence and reject stale snapshots of present sources."""
-    root = Path(project_dir)
-    evidence = json.loads((root / "reports" / "osm_notebook_evidence.json").read_text(encoding="utf-8"))
-    for name, digest in evidence["sources"].items():
-        source = root / name
-        if source.exists() and hashlib.sha256(source.read_bytes()).hexdigest() != digest:
-            raise ValueError(f"{name} changed since evidence extraction; review and rerun scripts/extract_osm_modules.py.")
-    return evidence
+# Feature-group permutation was run on the two models that use the OSM features.
+PERMUTATION_RUNS = {
+    "Without": "osm/DE_graphsage_classification_no_n2v_osm_all",
+    "With": "osm/DE_graphsage_classification_n2v_osm_all",
+}
+
+ALL_OSM_GROUPS = ["road_character", "intersection_control", "cycle_pedestrian_lighting", "nearby_places", "road_shape"]
+
+# Readable names for the permutation feature sets, in the order they are plotted.
+PERMUTATION_LABELS = {
+    "OSM nearby_places": "Nearby places",
+    "OSM road_character": "Road character",
+    "OSM intersection_control": "Intersection controls",
+    "OSM road_shape": "Road shape",
+    "OSM cycle_pedestrian_lighting": "Cycle / pedestrian / lighting",
+    "all OSM columns": "All OSM columns",
+    "baseline road flags and length": "Baseline road type and length",
+    "traffic (AADT)": "Traffic (AADT)",
+}
+
+# Metric keys in metrics.json and the names the report uses for them.
+REPORT_METRICS = {
+    "AUROC": "AUROC",
+    "PR-AUC": "AP",
+    "precision@top1%": "Precision@top 1%",
+    "recall@top1%": "Recall@top 1%",
+}
+
+BASELINE_COLOR, OSM_COLOR = "#9a9a94", "#2a78d6"
+NODE2VEC_COLORS = {"Without": "#eb6834", "With": "#6b4fa3"}
 
 
-def saved_table(evidence, name):
-    """Read a static HTML table; retain source row names as the DataFrame index."""
-    rows = evidence["tables"][name]["rows"]
-    header = rows[0]
-    # pandas adds a second header row for a named index (the 2x2 table).
-    body = [row for row in rows[1:] if any(value for value in row[1:])]
-    if any(len(row) != len(header) for row in body):
-        raise ValueError(f"Unexpected table shape for {name}")
-    table = pd.DataFrame([row[1:] for row in body], index=[row[0] for row in body], columns=header[1:])
-    for column in table:
-        series = table[column]
-        if set(series.dropna().unique()) <= {"True", "False"}:
-            table[column] = series.map({"True": True, "False": False})
-        else:
-            numeric = pd.to_numeric(series, errors="coerce")
-            if numeric.notna().all():
-                table[column] = numeric
+def _read_json(path):
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def load_osm_results(project_dir):
+    """Read the OSM comparison runs and check that they form a fair 2x2.
+
+    Why: a missing seed, a run from another state or task, or an OSM run with fewer
+    groups would silently change the comparison. Each check raises with the run name.
+    Takes: the repository folder. Returns a dict with `runs` {(node2vec, osm): metrics},
+    `permutation` {node2vec: permutation results} and `overlap` (the Node2Vec probe).
+    """
+    results_dir = Path(project_dir) / "results"
+    runs = {}
+    for (node2vec, osm), name in COMPARISON_RUNS.items():
+        metrics = _read_json(results_dir / name / "metrics.json")
+        metadata = _read_json(results_dir / name / "run_metadata.json")
+        config = metrics["config"]
+
+        # Same state, model, task and seeds in every cell of the 2x2.
+        expected = {"state": "DE", "model": "graphsage", "task": "classification",
+                    "use_node2vec": node2vec == "With", "seeds": [0, 1, 2]}
+        wrong = {key: config.get(key) for key, value in expected.items() if config.get(key) != value}
+        if wrong or not metrics.get("complete") or len(metrics["runs"]) != 3:
+            raise ValueError(f"{name}: not a complete 3-seed DE GraphSAGE classification run as expected ({wrong})")
+
+        # OSM runs must use all five groups; control runs must use none.
+        osm_record = metadata["provenance"].get("osm") or {}
+        groups = osm_record.get("groups", [])
+        if (osm == "With OSM") != (groups == ALL_OSM_GROUPS):
+            raise ValueError(f"{name}: OSM groups {groups} do not match the '{osm}' cell")
+        runs[(node2vec, osm)] = metrics
+
+    permutation = {node2vec: _read_json(results_dir / name / "permutation_importance.json")
+                   for node2vec, name in PERMUTATION_RUNS.items()}
+    overlap = _read_json(results_dir / "osm" / "overlap_check_DE.json")
+    return {"runs": runs, "permutation": permutation, "overlap": overlap}
+
+
+def _seed_values(metrics, metric):
+    """Test-set value of one metric for each seed, in seed order (all roads, not the balanced subset)."""
+    ordered = sorted(metrics["runs"], key=lambda run: run["seed"])
+    return np.array([run["test"]["all"][metric] for run in ordered])
+
+
+def _mean_sd(values):
+    # Population SD (ddof=0) across the three seeds, as everywhere else in the report.
+    return f"{values.mean():.4f} ± {values.std():.4f}"
+
+
+def osm_comparison_table(results):
+    """Table: baseline vs with-OSM test scores for both Node2Vec settings.
+
+    Why: the main result of §5.1. Change is the difference of seed means; 'Seeds
+    improved' pairs runs by seed number, which share the training seed but not
+    necessarily the same pipeline commit (the no-Node2Vec control is the team's run).
+    Takes: `load_osm_results` output. Returns a DataFrame indexed by (Node2Vec, metric).
+    """
+    rows = []
+    for node2vec in ("Without", "With"):
+        for key, label in REPORT_METRICS.items():
+            baseline = _seed_values(results["runs"][(node2vec, "Baseline")], key)
+            with_osm = _seed_values(results["runs"][(node2vec, "With OSM")], key)
+            rows.append({
+                "Node2Vec": node2vec, "Metric": label,
+                "Baseline": _mean_sd(baseline), "With OSM": _mean_sd(with_osm),
+                "Change": with_osm.mean() - baseline.mean(),
+                "Seeds improved": f"{int((with_osm > baseline).sum())}/3",
+            })
+    return pd.DataFrame(rows).set_index(["Node2Vec", "Metric"])
+
+
+def permutation_table(results):
+    """Table: test AUROC drop when each feature set is shuffled, per Node2Vec setting.
+
+    Why: shows which inputs the fitted model relies on. A drop is the unshuffled
+    AUROC minus the shuffled AUROC, averaged over the three seeds' repeats; it measures
+    reliance, not the gain from adding the group.
+    Takes: `load_osm_results` output. Returns a DataFrame (feature set x Node2Vec).
+    """
+    columns = {}
+    for node2vec, record in results["permutation"].items():
+        scores = record["scores"]
+        intact = np.array([scores["none"][seed]["AUROC"] for seed in sorted(scores["none"])])
+        drops = {}
+        for feature_set, label in PERMUTATION_LABELS.items():
+            shuffled = np.array([scores[feature_set][seed]["AUROC"] for seed in sorted(scores[feature_set])])
+            drops[label] = (intact - shuffled).mean()
+        columns[f"{node2vec} Node2Vec"] = pd.Series(drops)
+    table = pd.DataFrame(columns)
+    table.index.name = "Shuffled feature set"
     return table
 
 
-def _markdown_table(text):
-    rows = [line.strip().strip("|").split("|") for line in text.splitlines() if line.strip().startswith("|")]
-    rows = [[value.strip() for value in row] for row in rows]
-    if len(rows) < 3:
-        raise ValueError("No saved Markdown table")
-    return pd.DataFrame(rows[2:], columns=rows[0])
+def plot_osm_comparison(results):
+    """Figure: (left) the 2x2 test AUROC; (right) AUROC drop per shuffled OSM group.
+
+    Why: one picture of the main result and of what the model leans on.
+    Takes: `load_osm_results` output. Returns the matplotlib figure.
+    """
+    fig, (ax_scores, ax_drops) = plt.subplots(1, 2, figsize=(11, 3.8), layout="constrained",
+                                              gridspec_kw={"width_ratios": [1, 1.35]})
+
+    # Left: points with seed SD (not bars: the axis is zoomed, and bars would exaggerate the gaps).
+    positions = np.arange(2)
+    for offset, (osm, color) in zip((-0.1, 0.1), (("Baseline", BASELINE_COLOR), ("With OSM", OSM_COLOR))):
+        values = [_seed_values(results["runs"][(node2vec, osm)], "AUROC") for node2vec in ("Without", "With")]
+        means, sds = np.array([v.mean() for v in values]), np.array([v.std() for v in values])
+        ax_scores.errorbar(positions + offset, means, yerr=sds, fmt="o", markersize=7, capsize=4,
+                           color=color, label=osm)
+        for x, mean in zip(positions + offset, means):
+            ax_scores.annotate(f"{mean:.4f}", (x, mean), xytext=(9, 0), textcoords="offset points",
+                               va="center", fontsize=8.5, color=color)
+    ax_scores.set(xticks=positions, xticklabels=["Without Node2Vec", "With Node2Vec"], xlim=(-0.5, 1.6),
+                  ylabel="Test AUROC (mean ± SD, 3 seeds)")
+    ax_scores.legend(loc="lower right")
+    ax_scores.grid(axis="y")
+
+    # Right: horizontal bars of the permutation drop for each OSM group.
+    groups = ["Nearby places", "Road character", "Intersection controls", "Road shape", "Cycle / pedestrian / lighting"]
+    drops = permutation_table(results)
+    rows = np.arange(len(groups))
+    for offset, node2vec in zip((-0.2, 0.2), ("Without", "With")):
+        ax_drops.barh(rows + offset, drops.loc[groups, f"{node2vec} Node2Vec"], 0.38,
+                      color=NODE2VEC_COLORS[node2vec], label=f"{node2vec} Node2Vec")
+    ax_drops.set(yticks=rows, yticklabels=groups, xlabel="Test AUROC drop when the group is shuffled")
+    ax_drops.invert_yaxis()
+    ax_drops.axvline(0, color="grey", linewidth=0.7)
+    ax_drops.grid(axis="x")
+    ax_drops.legend(loc="lower right")
+    return fig
 
 
-def feature_coverage(evidence):
-    """Directed-row raw-tag coverage; accident-weighted shares have another denominator."""
-    item = next(item for item in evidence["feature_markdown"]
-                if item["cell"] == 64 and "weighted by accidents" in item["text"])
-    table = _markdown_table(item["text"])
-    table = table.rename(columns={"": "Feature", "all roads": "Directed roads (%)",
-                                   "weighted by accidents": "Accident-weighted coverage (%)"})
-    for column in ("Directed roads (%)", "Accident-weighted coverage (%)"):
-        table[column] = 100 * pd.to_numeric(table[column])
-    table["Feature"] = table.Feature.replace({"lit": "Lighting"}).str.capitalize()
-    return table.set_index("Feature")[["Directed roads (%)", "Accident-weighted coverage (%)"]]
+def plot_osm_pipeline():
+    """Figure: from the OSM snapshot and the benchmark graph to the model inputs.
 
+    Why: the reader sees the whole pipeline, its headline numbers, and the two places
+    where the OSM features enter GraphSAGE before reading the details. Needs no data;
+    the numbers are the Delaware values reported in §5.1.
+    Returns the matplotlib figure.
+    """
+    fig, ax = plt.subplots(figsize=(10, 7.2), layout="constrained")
+    ax.set_xlim(0, 10)
+    ax.set_ylim(0, 10.2)
+    ax.axis("off")
+    fills = {"source": "#e8f0fb", "step": "#cde2fb", "model": "#e2f3ec"}
+    arrow = dict(arrowstyle="-|>", color="#5f5e5a", lw=1.3, shrinkA=1, shrinkB=1)
 
-def feature_groups(evidence):
-    """Five raw OSM groups and their column counts from the saved catalogue."""
-    item = next(item for item in evidence["feature_markdown"]
-                if item["cell"] == 64 and "By feature group" in item["text"])
-    table = _markdown_table(item["text"]).rename(columns={"": "Group", "what": "Description", "columns": "Raw columns"})
-    table["Raw columns"] = pd.to_numeric(table["Raw columns"])
-    return table.set_index("Group")[["Description", "Raw columns"]]
+    def box(x, y, width, title, detail, kind):
+        """A rounded box centred on (x, y) with a bold title and a smaller detail line."""
+        ax.add_patch(FancyBboxPatch((x - width / 2, y - 0.42), width, 0.84, fc=fills[kind], ec="#c3c2bc",
+                                    lw=1.1, boxstyle="round,pad=0.02,rounding_size=0.12"))
+        ax.text(x, y + 0.14, title, ha="center", va="center", fontsize=10, weight="bold", color="#1f1f1d")
+        ax.text(x, y - 0.18, detail, ha="center", va="center", fontsize=8.6, color="#4a4945")
 
+    def down(x, y_from, y_to):
+        ax.annotate("", xy=(x, y_to), xytext=(x, y_from), arrowprops=arrow)
 
-def gap_validation(evidence):
-    item = next(item for item in evidence["feature_markdown"] if item["cell"] == 71)
-    table = _markdown_table(item["text"])
-    return table.set_index("state / feature")[["decision", "neighbours + road type", "expected accuracy on the missing roads"]]
+    # Two sources merge into the matching step.
+    box(2.6, 9.55, 3.8, "OpenStreetMap snapshot", "Geofabrik extract, Delaware, 2026-10-18", "source")
+    box(7.4, 9.55, 3.8, "Benchmark road graph", "49,023 intersections, 116,196 directed roads", "source")
+    ax.annotate("", xy=(4.2, 8.52), xytext=(2.6, 9.13), arrowprops=arrow)
+    ax.annotate("", xy=(5.8, 8.52), xytext=(7.4, 9.13), arrowprops=arrow)
 
+    # The linear preparation steps.
+    steps = [
+        ("Match roads to OSM", "89.6% of directed roads matched (85.1% exact, 4.0% nearest)"),
+        ("Parse and clean tags", "free text to numbers; all speed tags in mph; missing = unknown, not zero"),
+        ("Fill gaps, only if validated", "speed limit filled (96% vs 29%); lanes and surface left missing"),
+        ("Build and encode features", "58 raw features in 5 groups  →  70 encoded columns  x_OSM"),
+    ]
+    y = 8.1
+    for i, (title, detail) in enumerate(steps):
+        box(5, y, 7.2, title, detail, "step")
+        down(5, y - 0.42, y - 0.83)
+        y -= 1.25
 
-def score_summary(evidence):
-    """Mean +/- population SD across model seeds, in source precision."""
-    table = saved_table(evidence, "two_by_two")
-    table.index = pd.Index(["Without", "With"], name="Node2Vec")
-    table.columns = ["Baseline AUROC", "With OSM AUROC"]
-    changes = saved_table(evidence, "changes")
-    primary = changes[changes.metric == "AUROC"].set_index("node2vec")
-    table["AUROC change"] = [primary.loc[False, "change"], primary.loc[True, "change"]]
-    table["Seeds improved"] = [primary.loc[False, "seeds_improved"], primary.loc[True, "seeds_improved"]]
-    return table
+    # The combined edge vector, then the two places it is used.
+    box(5, y, 7.2, "Road input vector", "x_uv = [ x_base ‖ x_OSM ‖ x_traffic ]", "model")
+    ax.annotate("", xy=(2.8, y - 1.33), xytext=(4.2, y - 0.42), arrowprops=arrow)
+    ax.annotate("", xy=(7.2, y - 1.33), xytext=(5.8, y - 0.42), arrowprops=arrow)
+    box(2.8, y - 1.75, 4.0, "1. GraphSAGE messages", "m_u→v = W h_u + W_e x_uv", "model")
+    box(7.2, y - 1.75, 4.0, "2. Road predictor", "ŷ_uv = σ( MLP[ h_u ‖ h_v ‖ x_uv ] )", "model")
+    ax.annotate("", xy=(5.2, y - 1.75), xytext=(4.8, y - 1.75), arrowprops=arrow)
+    ax.text(5, y - 1.5, "h_u, h_v", ha="center", fontsize=8.6, color="#4a4945")
 
-
-def metric_changes(evidence):
-    table = saved_table(evidence, "changes").copy()
-    table["node2vec"] = table.node2vec.map({False: "Without", True: "With"})
-    table["metric"] = table.metric.replace({"PR-AUC": "AP"})
-    return table.rename(columns={"node2vec": "Node2Vec", "metric": "Metric", "control": "Baseline",
-                                  "variant_value": "With OSM", "change": "Change"})[
-        ["Node2Vec", "Metric", "Baseline", "With OSM", "Change"]]
-
-
-def permutation_summary(evidence):
-    tables = []
-    for n2v, key in (("With", "importance_n2v"), ("Without", "importance_no_n2v")):
-        table = saved_table(evidence, key).copy()
-        table["Node2Vec"] = n2v
-        tables.append(table)
-    return pd.concat(tables, ignore_index=True).rename(columns={"feature set": "Feature group", "worsening": "AUROC drop"})
-
-
-def plot_osm_comparison(evidence):
-    """Compact 2x2 AUROC plot and per-group permutation reliance."""
-    scores = saved_table(evidence, "two_by_two")
-    fig, axes = plt.subplots(1, 2, figsize=(10, 3.5), layout="constrained")
-    for i, (column, label) in enumerate(zip(scores.columns, ("Baseline", "With OSM"))):
-        pairs = [re.findall(r"[0-9.]+", value) for value in scores[column]]
-        means, stds = np.array([[float(p[0]), float(p[1])] for p in pairs]).T
-        axes[0].errorbar([0, 1], means, yerr=stds, marker="o", capsize=3, label=label)
-    axes[0].set(xticks=[0, 1], xticklabels=["Without Node2Vec", "With Node2Vec"], ylabel="Test AUROC", ylim=(.83, .89))
-    axes[0].legend()
-    table = permutation_summary(evidence)
-    groups = ["nearby_places", "road_character", "intersection_control", "road_shape", "cycle_pedestrian_lighting"]
-    labels = ["Nearby places", "Road characteristics", "Intersection controls", "Road shape", "Cycle / pedestrian / lighting"]
-    for i, (n2v, label) in enumerate((("Without", "Without Node2Vec"), ("With", "With Node2Vec"))):
-        selected = table[table.Node2Vec == n2v].set_index("Feature group")
-        values = [selected.loc[f"OSM {g}", "AUROC drop"] for g in groups]
-        errors = [selected.loc[f"OSM {g}", "std over seeds"] for g in groups]
-        axes[1].barh(np.arange(len(groups)) + (i - .5) * .35, values, .35, xerr=errors, label=label)
-    axes[1].set(yticks=range(len(groups)), yticklabels=labels, xlabel="Test AUROC drop after group permutation")
-    axes[1].invert_yaxis()
-    axes[1].axvline(0, color="grey", linewidth=.7)
-    axes[1].legend(fontsize=8)
+    ax.text(5, 0.25, "Accident counts are never used to build, match or fill a feature.",
+            ha="center", fontsize=9, style="italic", color="#4a4945")
     return fig

@@ -30,3 +30,7 @@ __pycache__/
 *.log
 .DS_Store
 Thumbs.db
+
+# OSM comparison: small analysis outputs (prediction tensors stay on Drive)
+!/results/**/permutation_importance.json
+!/results/osm/*_check_*.json
