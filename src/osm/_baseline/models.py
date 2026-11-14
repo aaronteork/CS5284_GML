@@ -1,4 +1,4 @@
-# Pinned comparison baseline; extracted from osm_baseline_comparison.ipynb, cell 14.
+# Pinned comparison baseline; extracted from notebooks/osm_baseline_comparison.ipynb, cell 14.
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

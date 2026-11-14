@@ -1,4 +1,4 @@
-# Pinned comparison baseline; extracted from osm_baseline_comparison.ipynb, cell 7.
+# Pinned comparison baseline; extracted from notebooks/osm_baseline_comparison.ipynb, cell 7.
 """Persistent monthly and structural feature caches adapted from baseline-fw."""
 import json
 import time
