@@ -144,6 +144,7 @@ def dataset_summary(data):
                      "Accidents/month": monthly_accidents(d).mean(),
                      "Mean degree": degree.mean(), "Max degree": degree.max(),
                      "Mean length (m)": lengths.mean(),
+                     "Directed traffic coverage (%)": 100 * len(observed) / len(edge_keys),
                      "Traffic coverage (%)": 100 * len(covered) / len(d.roads)})
     return pd.DataFrame(rows).set_index("State")
 
@@ -296,6 +297,84 @@ def historical_persistence(data, training_only=False):
     return pd.DataFrame(rows).set_index("State")
 
 
+def history_window_risk(data, windows=(1, 3, 6, 12)):
+    """Training-period next-month occurrence, by any crash in prior windows."""
+    rows = []
+    for state, d in data.items():
+        first, last = SPLITS[state]["train"]
+        months = d.months[(d.months.year >= first) & (d.months.year <= last)]
+        positive = d.counts[d.counts > 0]
+        sets = {date: set(group.index.get_level_values("road"))
+                for date, group in positive.groupby(level="date")}
+        available = set(months)
+        roads = set(d.roads)
+        for window in windows:
+            denominators = [0, 0]
+            positives = [0, 0]
+            for date in months:
+                previous = [date - pd.DateOffset(months=k) for k in range(1, window + 1)]
+                if not all(month in available for month in previous):
+                    continue
+                history = set().union(*(sets.get(month, set()) for month in previous)) & roads
+                current = sets.get(date, set()) & roads
+                denominators[1] += len(history)
+                denominators[0] += len(roads) - len(history)
+                positives[1] += len(current & history)
+                positives[0] += len(current - history)
+            for has_history in (0, 1):
+                n = denominators[has_history]
+                rows.append({"State": STATE_NAMES[state], "Prior months": window,
+                             "History": "One or more" if has_history else "None",
+                             "Road-months": n, "Accident road-months": positives[has_history],
+                             "Next-month accident (%)": 100 * positives[has_history] / n if n else np.nan})
+    return pd.DataFrame(rows)
+
+
+def traffic_accident_association(data):
+    """Training-year AADT and matching-year accident counts on observed roads.
+
+    Opposite-direction AADT observations are averaged per unordered pair.
+    No AADT imputation or future-year carry-back is used.
+    """
+    rows = []
+    for state, d in data.items():
+        first, last = SPLITS[state]["train"]
+        roads = pd.Index(d.roads)
+        for year, path in sorted(d.traffic_files.items()):
+            if not first <= year <= last:
+                continue
+            months = d.months[d.months.year == year]
+            if not len(months):
+                continue
+            aadt = _feature_series(_load_tensor(path)["AADT"], d.n_nodes, physical=True)
+            aadt = aadt.reindex(roads).dropna()
+            aadt = aadt[aadt >= 0]
+            yearly = d.counts[d.counts.index.get_level_values("date").isin(months)]
+            counts = yearly.groupby("road").sum().reindex(aadt.index, fill_value=0)
+            rows.extend({"State": STATE_NAMES[state], "Year": year, "road": int(road),
+                         "AADT": float(value), "Mean monthly accidents": float(counts.loc[road] / len(months))}
+                        for road, value in aadt.items())
+    return pd.DataFrame(rows, columns=["State", "Year", "road", "AADT", "Mean monthly accidents"])
+
+
+def plot_traffic_risk(observations):
+    states = list(observations.State.unique())
+    if not states:
+        fig, ax = plt.subplots(); ax.text(.5, .5, "No training-year AADT observations", ha="center"); ax.axis("off")
+        return fig, pd.DataFrame()
+    fig, axes = plt.subplots(1, len(states), figsize=(5.4 * len(states), 3.4), squeeze=False, layout="constrained")
+    stats = []
+    for ax, state in zip(axes.ravel(), states):
+        frame = observations[observations.State == state].copy()
+        frame["group"] = pd.qcut(frame.AADT, 5, duplicates="drop")
+        grouped = frame.groupby("group", observed=True)[["AADT", "Mean monthly accidents"]].mean()
+        ax.plot(grouped.AADT, grouped["Mean monthly accidents"], marker="o")
+        ax.set(title=state, xlabel="Mean AADT within group", ylabel="Mean accidents per road-month")
+        corr = frame[["AADT", "Mean monthly accidents"]].corr(method="spearman").iloc[0, 1]
+        stats.append({"State": state, "Observed road-years": len(frame), "Spearman correlation": corr})
+    return fig, pd.DataFrame(stats).set_index("State")
+
+
 def _risk(d, training_only=True):
     months = d.months
     if training_only:
@@ -316,7 +395,7 @@ def _axes(data, height=3.4):
 def plot_monthly_accidents(data):
     """Monthly totals with chronological split boundaries."""
     fig, axes = plt.subplots(len(data), 1, figsize=(10, 2.5 * len(data)),
-                             squeeze=False, layout="constrained")
+                             squeeze=False, layout="constrained", sharex=True)
     for ax, (state, d) in zip(axes.ravel(), data.items()):
         totals = monthly_accidents(d)
         ax.plot(totals.index, totals.values)
@@ -325,7 +404,7 @@ def plot_monthly_accidents(data):
             ax.axvline(date, color="grey", linestyle=":")
         for label, start, end in (("Train", totals.index.min(), val), ("Validation", val, test),
                                   ("Test", test, totals.index.max())):
-            ax.text(start + (end - start) / 2, .95, label, transform=ax.get_xaxis_transform(), ha="center", va="top")
+            ax.text(start + (end - start) / 2, .99, label, transform=ax.get_xaxis_transform(), ha="center", va="top")
         ax.set(title=STATE_NAMES[state], xlabel="Month", ylabel="Recorded accidents")
         ax.grid(alpha=.3)
     return fig
