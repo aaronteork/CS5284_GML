@@ -18,7 +18,7 @@ LANES_MAX = 8
 STANDARDISED_CLIP = 10.0
 
 def osm_table_path(state, data_dir=None):
-    """The model-ready feature table for a state, written by osm_features_and_eda.ipynb (Stage 13)."""
+    """The model-ready feature table for a state, written by notebooks/osm_features_and_eda.ipynb (Stage 13)."""
     return Path(data_dir or Path(os.environ.get("CS5284_DATA_DIR", "data"))) / f"{state}_osm_features.parquet"
 
 def osm_group_columns(table, state, data_dir=None):

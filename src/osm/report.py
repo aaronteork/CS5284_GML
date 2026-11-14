@@ -3,7 +3,7 @@
 Why: the report must render from small committed files, without the OSM data, the
 prediction tensors or a GPU. Everything here reads `metrics.json`,
 `permutation_importance.json` and `run_metadata.json` under `results/`, written by
-`osm_baseline_comparison.ipynb`. Nothing here trains, rebuilds features or reads the
+`notebooks/osm_baseline_comparison.ipynb`. Nothing here trains, rebuilds features or reads the
 OSM notebooks.
 
 Takes: the repository folder. Returns: pandas tables and matplotlib figures.
@@ -68,7 +68,7 @@ def load_osm_results(project_dir):
     Why: a missing seed, a run from another state or task, or an OSM run with fewer
     groups would silently change the comparison. Each check raises with the run name.
     Takes: the repository folder. Returns a dict with `runs` {(node2vec, osm): metrics},
-    `permutation` {node2vec: permutation results} and `overlap` (the Node2Vec probe).
+    and `permutation` {node2vec: permutation results}.
     """
     results_dir = Path(project_dir) / "results"
     runs = {}
@@ -93,8 +93,7 @@ def load_osm_results(project_dir):
 
     permutation = {node2vec: _read_json(results_dir / name / "permutation_importance.json")
                    for node2vec, name in PERMUTATION_RUNS.items()}
-    overlap = _read_json(results_dir / "osm" / "overlap_check_DE.json")
-    return {"runs": runs, "permutation": permutation, "overlap": overlap}
+    return {"runs": runs, "permutation": permutation}
 
 
 def _seed_values(metrics, metric):
@@ -225,8 +224,8 @@ def plot_osm_pipeline():
     # The linear preparation steps.
     steps = [
         ("Match roads to OSM", "89.6% of directed roads matched (85.1% exact, 4.0% nearest)"),
-        ("Parse and clean tags", "free text to numbers; all speed tags in mph; missing = unknown, not zero"),
-        ("Fill gaps, only if validated", "speed limit filled (96% vs 29%); lanes and surface left missing"),
+        ("Clean recorded attributes", "free text to numbers; all speed limits in mph; missing = unknown, not zero"),
+        ("Test gap-filling", "speed limit passes; estimates not used in the reported model"),
         ("Build and encode features", "58 raw features in 5 groups  →  70 encoded columns  x_OSM"),
     ]
     y = 8.1

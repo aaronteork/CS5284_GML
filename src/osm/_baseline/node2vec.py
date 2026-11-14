@@ -1,4 +1,4 @@
-# Pinned comparison baseline; extracted from osm_baseline_comparison.ipynb, cell 9.
+# Pinned comparison baseline; extracted from notebooks/osm_baseline_comparison.ipynb, cell 9.
 """Fast Node2Vec-style GPU embeddings adapted from baseline-fw.
 
 Custom skip-gram/negative sampling, p=q=1, 20-step walks. This is a documented

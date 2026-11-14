@@ -11,7 +11,7 @@ edge features, then calls the baseline's own training and evaluation code. Run i
     python -m src.osm.train --state DE --traffic-check --osm-groups              # does the traffic (AADT) input vary between roads?
     python -m src.osm.train --state DE --overlap-check --osm-groups ...          # how much of Node2Vec do these features describe?
 
-The features come from `{STATE}_osm_features.parquet` (built by osm_features_and_eda.ipynb, Stage 13) in the data folder.
+The features come from `{STATE}_osm_features.parquet` (built by notebooks/osm_features_and_eda.ipynb, Stage 13) in the data folder.
 Groups: road_character (speed limit, lanes, surface, bridge, tunnel as OSM has them), road_character_filled (the same three
 tags with validated estimates for missing values; use it INSTEAD of road_character), intersection_control, cycle_pedestrian_lighting,
 nearby_places and road_shape (curviness).
@@ -81,7 +81,7 @@ class OsmRoadAccidentDataset(RoadAccidentDataset):
             return base
         path = Path(self._osm_path) if self._osm_path else osm_table_path(self.state, self.dir.parent)
         if not path.exists():
-            raise FileNotFoundError(f"{path} not found. Build it with osm_features_and_eda.ipynb (Stage 13); it is saved in the Drive data folder.")
+            raise FileNotFoundError(f"{path} not found. Build it with notebooks/osm_features_and_eda.ipynb (Stage 13); it is saved in the Drive data folder.")
         table = pd.read_parquet(path)
         src, dst = self.edge_index.numpy()
         features, self.osm_feature_names, self.osm_feature_groups = build_osm_features(

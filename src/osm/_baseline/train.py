@@ -1,4 +1,4 @@
-# Pinned comparison baseline; extracted from osm_baseline_comparison.ipynb, cell 15.
+# Pinned comparison baseline; extracted from notebooks/osm_baseline_comparison.ipynb, cell 15.
 import os
 """Train the MLP / GraphSAGE baselines.
 
