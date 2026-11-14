@@ -1,0 +1,153 @@
+{
+  "config": {
+    "state": "MD",
+    "model": "graph_transformer",
+    "task": "classification",
+    "use_node2vec": true,
+    "epochs": 100,
+    "lr": 0.001,
+    "hidden_channels": 256,
+    "num_layers": 2,
+    "dropout": 0.0,
+    "num_heads": 4,
+    "eval_every": 5,
+    "select_protocol": "all",
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "device": "cuda",
+    "run_name": "MD_graph_transformer_classification_n2v_hist_none",
+    "history_mode": "none",
+    "data_dir": "data",
+    "history_dir": "data/accident_history/outputs",
+    "output_dir": "",
+    "resume": true,
+    "smoke_test": false,
+    "history_groups": [],
+    "history_min_months": 0
+  },
+  "data": {
+    "num_nodes": 250565,
+    "num_roads": 317281,
+    "target_unit": "physical",
+    "history": null,
+    "months": {
+      "train": 36,
+      "valid": 24,
+      "test": 36
+    }
+  },
+  "provenance": {
+    "git_commit": "374825d1253c8f7a97fe4237d52a590285274ed9",
+    "git_dirty": true,
+    "torch_version": "2.14.1+cu132",
+    "numpy_version": "2.5.2",
+    "device": "cuda",
+    "gpu": "NVIDIA GeForce RTX 5080",
+    "splits": {
+      "train": [
+        2015,
+        2016,
+        2017
+      ],
+      "valid": [
+        2018,
+        2019
+      ],
+      "test": [
+        2020,
+        2021,
+        2022
+      ]
+    },
+    "embedding": {
+      "backend": "baseline-fw.torch-skipgram-v2",
+      "state": "MD",
+      "parameters": {
+        "dimensions": 128,
+        "walk_length": 20,
+        "walks_per_node": 10,
+        "window_size": 5,
+        "epochs": 1,
+        "batch_size": 1024,
+        "lr": 0.01,
+        "seed": 0,
+        "p": 1,
+        "q": 1,
+        "negatives_per_pair": 1,
+        "context_direction": "forward"
+      },
+      "num_nodes": 250565,
+      "torch_version": "2.14.1+cu132",
+      "device": "cuda"
+    }
+  },
+  "identity": {
+    "settings": {
+      "state": "MD",
+      "model": "graph_transformer",
+      "task": "classification",
+      "use_node2vec": true,
+      "epochs": 100,
+      "lr": 0.001,
+      "hidden_channels": 256,
+      "num_layers": 2,
+      "dropout": 0.0,
+      "num_heads": 4,
+      "eval_every": 5,
+      "select_protocol": "all",
+      "run_name": "MD_graph_transformer_classification_n2v_hist_none",
+      "history_mode": "none",
+      "smoke_test": false,
+      "history_groups": [],
+      "history_min_months": 0
+    },
+    "source_sha256": "2d4ee3d165ef5d376dd801f5de6785ea525b48b8de8750f273caf1e054edfc5d",
+    "data_fingerprint": "fc240103d0ff1bc6180c488084b6b4c5e7650e097e787b2438692ed3e8b8b3ca",
+    "history_fingerprint": null
+  },
+  "seed": 2,
+  "best_epoch": 10,
+  "valid": {
+    "all": {
+      "AUROC": 0.8818128105611306,
+      "PR-AUC": 0.22553847836544694,
+      "precision@0.5": 0.09390125907593545,
+      "recall@0.5": 0.8029221282762973,
+      "AUROC (pooled)": 0.8817735520106971,
+      "precision@top1%": 0.3788738312847988,
+      "recall@top1%": 0.15446074630765208
+    },
+    "balanced": {
+      "AUROC": 0.8821517433638925,
+      "PR-AUC": 0.8742506769920568,
+      "precision@0.5": 0.8053469510363472,
+      "recall@0.5": 0.8029221282762973,
+      "AUROC (pooled)": 0.8821587167661669,
+      "precision@top1%": 0.9898121799102947,
+      "recall@top1%": 0.01985081021743051
+    }
+  },
+  "test": {
+    "all": {
+      "AUROC": 0.8780162879084095,
+      "PR-AUC": 0.2046114359530609,
+      "precision@0.5": 0.08316902809263683,
+      "recall@0.5": 0.8014432933115389,
+      "AUROC (pooled)": 0.877964497907403,
+      "precision@top1%": 0.3469289491193053,
+      "recall@top1%": 0.15579697564724027
+    },
+    "balanced": {
+      "AUROC": 0.8777815373027485,
+      "PR-AUC": 0.8695355682751098,
+      "precision@0.5": 0.79866015625,
+      "recall@0.5": 0.8014432933115389,
+      "AUROC (pooled)": 0.8777068863888501,
+      "precision@top1%": 0.9861437490729528,
+      "recall@top1%": 0.019791389973075706
+    }
+  }
+}

@@ -1,0 +1,359 @@
+{
+  "config": {
+    "state": "DE",
+    "model": "gatedgcn",
+    "task": "classification",
+    "use_node2vec": false,
+    "epochs": 100,
+    "lr": 0.001,
+    "hidden_channels": 256,
+    "num_layers": 2,
+    "dropout": 0.0,
+    "num_heads": 4,
+    "eval_every": 5,
+    "select_protocol": "all",
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "device": "cuda",
+    "run_name": "DE_gatedgcn_classification_no_n2v_hist_none",
+    "history_mode": "none",
+    "data_dir": "data",
+    "history_dir": "data/accident_history/outputs",
+    "output_dir": "",
+    "resume": false,
+    "smoke_test": false,
+    "history_groups": [],
+    "history_min_months": 0
+  },
+  "data": {
+    "num_nodes": 49023,
+    "num_roads": 65252,
+    "target_unit": "physical",
+    "history": null,
+    "months": {
+      "train": 48,
+      "valid": 60,
+      "test": 57
+    }
+  },
+  "summary": {
+    "valid": {
+      "all": {
+        "AUROC": {
+          "mean": 0.8728558709050652,
+          "std": 0.00011517751023281846
+        },
+        "PR-AUC": {
+          "mean": 0.2602399661992702,
+          "std": 0.003361859876112738
+        },
+        "precision@0.5": {
+          "mean": 0.12368018846992639,
+          "std": 0.0032915118273765145
+        },
+        "recall@0.5": {
+          "mean": 0.804770735353222,
+          "std": 0.010679824378432347
+        },
+        "AUROC (pooled)": {
+          "mean": 0.8722463033330919,
+          "std": 0.0003069300684168434
+        },
+        "precision@top1%": {
+          "mean": 0.4561936362089501,
+          "std": 0.006473894181242958
+        },
+        "recall@top1%": {
+          "mean": 0.12629441065453553,
+          "std": 0.001851291545173345
+        }
+      },
+      "balanced": {
+        "AUROC": {
+          "mean": 0.8732797761087592,
+          "std": 3.6470555880277106e-05
+        },
+        "PR-AUC": {
+          "mean": 0.8627918275186608,
+          "std": 0.0004535244230213655
+        },
+        "precision@0.5": {
+          "mean": 0.7906807922224951,
+          "std": 0.005361053662512041
+        },
+        "recall@0.5": {
+          "mean": 0.804770735353222,
+          "std": 0.010679824378432347
+        },
+        "AUROC (pooled)": {
+          "mean": 0.8729034277167053,
+          "std": 0.00014979212727726448
+        },
+        "precision@top1%": {
+          "mean": 0.979513347821129,
+          "std": 0.0010500305762538914
+        },
+        "recall@top1%": {
+          "mean": 0.019781682001897862,
+          "std": 2.1111343103445525e-05
+        }
+      }
+    },
+    "test": {
+      "all": {
+        "AUROC": {
+          "mean": 0.8645606582115631,
+          "std": 0.0011556437234339601
+        },
+        "PR-AUC": {
+          "mean": 0.25011802872630656,
+          "std": 0.00236904439967666
+        },
+        "precision@0.5": {
+          "mean": 0.12656449531179204,
+          "std": 0.003353728671924274
+        },
+        "recall@0.5": {
+          "mean": 0.7856910475753053,
+          "std": 0.015025435372164322
+        },
+        "AUROC (pooled)": {
+          "mean": 0.8633888464037524,
+          "std": 0.0016965751603599337
+        },
+        "precision@top1%": {
+          "mean": 0.4466743684120971,
+          "std": 0.0038685557103657936
+        },
+        "recall@top1%": {
+          "mean": 0.1195318391597857,
+          "std": 0.0010546930434734638
+        }
+      },
+      "balanced": {
+        "AUROC": {
+          "mean": 0.8643954030244725,
+          "std": 0.0010893285493308292
+        },
+        "PR-AUC": {
+          "mean": 0.8531068237836982,
+          "std": 0.0009465812017752494
+        },
+        "precision@0.5": {
+          "mean": 0.788547906115849,
+          "std": 0.005032254296181931
+        },
+        "recall@0.5": {
+          "mean": 0.7856910475753053,
+          "std": 0.015025435372164322
+        },
+        "AUROC (pooled)": {
+          "mean": 0.8637176272440484,
+          "std": 0.0015329060701774254
+        },
+        "precision@top1%": {
+          "mean": 0.9768758343461776,
+          "std": 0.0010457265608774424
+        },
+        "recall@top1%": {
+          "mean": 0.019708291881196674,
+          "std": 2.1153482860086573e-05
+        }
+      }
+    }
+  },
+  "runs": [
+    {
+      "seed": 0,
+      "best_epoch": 25,
+      "valid": {
+        "all": {
+          "AUROC": 0.8728707245283426,
+          "PR-AUC": 0.2560069200953963,
+          "precision@0.5": 0.1190468633700305,
+          "recall@0.5": 0.8198740683810102,
+          "AUROC (pooled)": 0.8724911978222465,
+          "precision@top1%": 0.4472945380296069,
+          "recall@top1%": 0.12373994397446102
+        },
+        "balanced": {
+          "AUROC": 0.8732812087140853,
+          "PR-AUC": 0.8621511426410916,
+          "precision@0.5": 0.7831050228310502,
+          "recall@0.5": 0.8198740683810102,
+          "AUROC (pooled)": 0.8730770150895018,
+          "precision@top1%": 0.978257189951485,
+          "recall@top1%": 0.019756484328399947
+        }
+      },
+      "test": {
+        "all": {
+          "AUROC": 0.8651636049080682,
+          "PR-AUC": 0.24683032043589498,
+          "precision@0.5": 0.1224356997775732,
+          "recall@0.5": 0.8007305660810655,
+          "AUROC (pooled)": 0.8642232796482738,
+          "precision@top1%": 0.4412831466107842,
+          "recall@top1%": 0.11807236486320125
+        },
+        "balanced": {
+          "AUROC": 0.8649292598117766,
+          "PR-AUC": 0.8527095920729073,
+          "precision@0.5": 0.7825406955948465,
+          "recall@0.5": 0.8007305660810655,
+          "AUROC (pooled)": 0.8644823589444127,
+          "precision@top1%": 0.975396954055261,
+          "recall@top1%": 0.019678377944476046
+        }
+      }
+    },
+    {
+      "seed": 1,
+      "best_epoch": 35,
+      "valid": {
+        "all": {
+          "AUROC": 0.8727079687728118,
+          "PR-AUC": 0.26048188442570847,
+          "precision@0.5": 0.12560916680089534,
+          "recall@0.5": 0.7972895792642942,
+          "AUROC (pooled)": 0.8718134867645894,
+          "precision@top1%": 0.45877998979070955,
+          "recall@top1%": 0.1270747078184522
+        },
+        "balanced": {
+          "AUROC": 0.8732344099135899,
+          "PR-AUC": 0.8631380305288997,
+          "precision@0.5": 0.7942095762539245,
+          "recall@0.5": 0.7972895792642942,
+          "AUROC (pooled)": 0.8727114813313612,
+          "precision@top1%": 0.9808272816032042,
+          "recall@top1%": 0.019808149549804185
+        }
+      },
+      "test": {
+        "all": {
+          "AUROC": 0.865574711405859,
+          "PR-AUC": 0.2523202624013379,
+          "precision@0.5": 0.12660750009761565,
+          "recall@0.5": 0.7911714892639798,
+          "AUROC (pooled)": 0.8649197934764756,
+          "precision@top1%": 0.44856398269793935,
+          "recall@top1%": 0.11999508576953295
+        },
+        "balanced": {
+          "AUROC": 0.8653799548466319,
+          "PR-AUC": 0.85441254360137,
+          "precision@0.5": 0.7882469022815509,
+          "recall@0.5": 0.7911714892639798,
+          "AUROC (pooled)": 0.8650919886350235,
+          "precision@top1%": 0.9776143395903708,
+          "recall@top1%": 0.019722980431834524
+        }
+      }
+    },
+    {
+      "seed": 2,
+      "best_epoch": 30,
+      "valid": {
+        "all": {
+          "AUROC": 0.8729889194140411,
+          "PR-AUC": 0.264231094076706,
+          "precision@0.5": 0.1263845352388533,
+          "recall@0.5": 0.7971485584143616,
+          "AUROC (pooled)": 0.87243422541244,
+          "precision@top1%": 0.462506380806534,
+          "recall@top1%": 0.12806858017069334
+        },
+        "balanced": {
+          "AUROC": 0.8733237096986022,
+          "PR-AUC": 0.863086309385991,
+          "precision@0.5": 0.7947277775825102,
+          "recall@0.5": 0.7971485584143616,
+          "AUROC (pooled)": 0.8729217867292527,
+          "precision@top1%": 0.9794555719086974,
+          "recall@top1%": 0.019780412127489443
+        }
+      },
+      "test": {
+        "all": {
+          "AUROC": 0.8629436583207626,
+          "PR-AUC": 0.2512035033416868,
+          "precision@0.5": 0.13065028606018722,
+          "recall@0.5": 0.7651710873808704,
+          "AUROC (pooled)": 0.8610234660865077,
+          "precision@top1%": 0.4501759759275678,
+          "recall@top1%": 0.12052806684662287
+        },
+        "balanced": {
+          "AUROC": 0.8628769944150088,
+          "PR-AUC": 0.8521983356768172,
+          "precision@0.5": 0.7948561204711495,
+          "recall@0.5": 0.7651710873808704,
+          "AUROC (pooled)": 0.8615785341527091,
+          "precision@top1%": 0.9776162093929013,
+          "recall@top1%": 0.019723517267279448
+        }
+      }
+    }
+  ],
+  "identity": {
+    "settings": {
+      "state": "DE",
+      "model": "gatedgcn",
+      "task": "classification",
+      "use_node2vec": false,
+      "epochs": 100,
+      "lr": 0.001,
+      "hidden_channels": 256,
+      "num_layers": 2,
+      "dropout": 0.0,
+      "num_heads": 4,
+      "eval_every": 5,
+      "select_protocol": "all",
+      "run_name": "DE_gatedgcn_classification_no_n2v_hist_none",
+      "history_mode": "none",
+      "smoke_test": false,
+      "history_groups": [],
+      "history_min_months": 0
+    },
+    "source_sha256": "2d4ee3d165ef5d376dd801f5de6785ea525b48b8de8750f273caf1e054edfc5d",
+    "data_fingerprint": "11718b9beed127fe783d0f75bc7f428dd32439262d273a387e2cc9d9ab1181e8",
+    "history_fingerprint": null
+  },
+  "provenance": {
+    "git_commit": "374825d1253c8f7a97fe4237d52a590285274ed9",
+    "git_dirty": true,
+    "torch_version": "2.14.1+cu132",
+    "numpy_version": "2.5.2",
+    "device": "cuda",
+    "gpu": "NVIDIA GeForce RTX 5080",
+    "splits": {
+      "train": [
+        2009,
+        2010,
+        2011,
+        2012
+      ],
+      "valid": [
+        2013,
+        2014,
+        2015,
+        2016,
+        2017
+      ],
+      "test": [
+        2018,
+        2019,
+        2020,
+        2021,
+        2022
+      ]
+    },
+    "embedding": null
+  },
+  "smoke_only": false,
+  "complete": true
+}

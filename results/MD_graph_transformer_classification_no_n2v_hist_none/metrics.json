@@ -1,0 +1,353 @@
+{
+  "config": {
+    "state": "MD",
+    "model": "graph_transformer",
+    "task": "classification",
+    "use_node2vec": false,
+    "epochs": 100,
+    "lr": 0.001,
+    "hidden_channels": 256,
+    "num_layers": 2,
+    "dropout": 0.0,
+    "num_heads": 4,
+    "eval_every": 5,
+    "select_protocol": "all",
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "device": "cuda",
+    "run_name": "MD_graph_transformer_classification_no_n2v_hist_none",
+    "history_mode": "none",
+    "data_dir": "data",
+    "history_dir": "data/accident_history/outputs",
+    "output_dir": "",
+    "resume": true,
+    "smoke_test": false,
+    "history_groups": [],
+    "history_min_months": 0
+  },
+  "data": {
+    "num_nodes": 250565,
+    "num_roads": 317281,
+    "target_unit": "physical",
+    "history": null,
+    "months": {
+      "train": 36,
+      "valid": 24,
+      "test": 36
+    }
+  },
+  "summary": {
+    "valid": {
+      "all": {
+        "AUROC": {
+          "mean": 0.8772553362176007,
+          "std": 0.00018721370559864541
+        },
+        "PR-AUC": {
+          "mean": 0.21717350586543657,
+          "std": 0.0024658461335904528
+        },
+        "precision@0.5": {
+          "mean": 0.08831692088504567,
+          "std": 0.0018865053076749423
+        },
+        "recall@0.5": {
+          "mean": 0.80894215462394,
+          "std": 0.00840891591594757
+        },
+        "AUROC (pooled)": {
+          "mean": 0.8771792789940921,
+          "std": 0.00019211117862077463
+        },
+        "precision@top1%": {
+          "mean": 0.3702594810379241,
+          "std": 0.004331819842666888
+        },
+        "recall@top1%": {
+          "mean": 0.1509366097680819,
+          "std": 0.001771947133569362
+        }
+      },
+      "balanced": {
+        "AUROC": {
+          "mean": 0.8777620289374944,
+          "std": 0.00019420880939071726
+        },
+        "PR-AUC": {
+          "mean": 0.8702692042314181,
+          "std": 0.0005628199966974714
+        },
+        "precision@0.5": {
+          "mean": 0.7941530172717953,
+          "std": 0.0037209938216728475
+        },
+        "recall@0.5": {
+          "mean": 0.80894215462394,
+          "std": 0.00840891591594757
+        },
+        "AUROC (pooled)": {
+          "mean": 0.8777364681776474,
+          "std": 0.00020252280580718306
+        },
+        "precision@top1%": {
+          "mean": 0.9868693793130188,
+          "std": 0.001132868482964462
+        },
+        "recall@top1%": {
+          "mean": 0.01979179912372625,
+          "std": 2.2743140262966276e-05
+        }
+      }
+    },
+    "test": {
+      "all": {
+        "AUROC": {
+          "mean": 0.8619472286994899,
+          "std": 0.0007630273601091968
+        },
+        "PR-AUC": {
+          "mean": 0.18081446863018924,
+          "std": 0.0034200459660015804
+        },
+        "precision@0.5": {
+          "mean": 0.08082406576804946,
+          "std": 0.002601757289554325
+        },
+        "recall@0.5": {
+          "mean": 0.7623296003177701,
+          "std": 0.015375874846864366
+        },
+        "AUROC (pooled)": {
+          "mean": 0.8612212010860877,
+          "std": 0.0008344996387737862
+        },
+        "precision@top1%": {
+          "mean": 0.315243781442962,
+          "std": 0.005292892003803493
+        },
+        "recall@top1%": {
+          "mean": 0.14192916627792682,
+          "std": 0.002393001049369382
+        }
+      },
+      "balanced": {
+        "AUROC": {
+          "mean": 0.8617827968097602,
+          "std": 0.0007112740239514534
+        },
+        "PR-AUC": {
+          "mean": 0.8535391034989921,
+          "std": 0.001319138857420462
+        },
+        "precision@0.5": {
+          "mean": 0.7940530098752493,
+          "std": 0.00582266503702636
+        },
+        "recall@0.5": {
+          "mean": 0.7623296003177701,
+          "std": 0.015375874846864366
+        },
+        "AUROC (pooled)": {
+          "mean": 0.8614028186455314,
+          "std": 0.0007464291005379262
+        },
+        "precision@top1%": {
+          "mean": 0.9831751113260238,
+          "std": 0.0007668724979327337
+        },
+        "recall@top1%": {
+          "mean": 0.019731894894565668,
+          "std": 1.5398311039827707e-05
+        }
+      }
+    }
+  },
+  "runs": [
+    {
+      "seed": 0,
+      "best_epoch": 40,
+      "valid": {
+        "all": {
+          "AUROC": 0.8771013323373891,
+          "PR-AUC": 0.21392240831417625,
+          "precision@0.5": 0.08999321751239502,
+          "recall@0.5": 0.8011305598784942,
+          "AUROC (pooled)": 0.8769968810899544,
+          "precision@top1%": 0.36414014077108936,
+          "recall@top1%": 0.14843429112188075
+        },
+        "balanced": {
+          "AUROC": 0.8777647842725247,
+          "PR-AUC": 0.8695808778944262,
+          "precision@0.5": 0.7976241820147064,
+          "recall@0.5": 0.8011305598784942,
+          "AUROC (pooled)": 0.8777315441800215,
+          "precision@top1%": 0.98529850215307,
+          "recall@top1%": 0.019760260162084493
+        }
+      },
+      "test": {
+        "all": {
+          "AUROC": 0.8614990500158213,
+          "PR-AUC": 0.17667615435622996,
+          "precision@0.5": 0.08410485403458508,
+          "recall@0.5": 0.7428805500350828,
+          "AUROC (pooled)": 0.8603227215114901,
+          "precision@top1%": 0.3088997443709073,
+          "recall@top1%": 0.139028612949399
+        },
+        "balanced": {
+          "AUROC": 0.8613372963229325,
+          "PR-AUC": 0.8519915763414196,
+          "precision@0.5": 0.8014793262256882,
+          "recall@0.5": 0.7428805500350828,
+          "AUROC (pooled)": 0.8607104269191685,
+          "precision@top1%": 0.9826451510589193,
+          "recall@top1%": 0.019721302900058843
+        }
+      }
+    },
+    {
+      "seed": 1,
+      "best_epoch": 45,
+      "valid": {
+        "all": {
+          "AUROC": 0.8775188470341863,
+          "PR-AUC": 0.2198914690614935,
+          "precision@0.5": 0.08568130890645827,
+          "recall@0.5": 0.8206131977089316,
+          "AUROC (pooled)": 0.8774448577352743,
+          "precision@top1%": 0.3730696501733375,
+          "recall@top1%": 0.15207159675840712
+        },
+        "balanced": {
+          "AUROC": 0.877998495543747,
+          "PR-AUC": 0.8709594955024661,
+          "precision@0.5": 0.7889922408872846,
+          "recall@0.5": 0.8206131977089316,
+          "AUROC (pooled)": 0.8779869322853093,
+          "precision@top1%": 0.987382154711018,
+          "recall@top1%": 0.019802105449098915
+        }
+      },
+      "test": {
+        "all": {
+          "AUROC": 0.8630214168761908,
+          "PR-AUC": 0.1850517673312288,
+          "precision@0.5": 0.07774109312626114,
+          "recall@0.5": 0.7804759496846471,
+          "AUROC (pooled)": 0.8623331137272092,
+          "precision@top1%": 0.3218562874251497,
+          "recall@top1%": 0.1448893349332613
+        },
+        "balanced": {
+          "AUROC": 0.8627865804025897,
+          "PR-AUC": 0.8552151202352495,
+          "precision@0.5": 0.7872588597660065,
+          "recall@0.5": 0.7804759496846471,
+          "AUROC (pooled)": 0.8624390723875484,
+          "precision@top1%": 0.9842595404992339,
+          "recall@top1%": 0.019753668731895817
+        }
+      }
+    },
+    {
+      "seed": 2,
+      "best_epoch": 45,
+      "valid": {
+        "all": {
+          "AUROC": 0.8771458292812263,
+          "PR-AUC": 0.21770664022063987,
+          "precision@0.5": 0.08927623623628372,
+          "recall@0.5": 0.8050827062843942,
+          "AUROC (pooled)": 0.8770960981570473,
+          "precision@top1%": 0.3735686521693455,
+          "recall@top1%": 0.1523039414239579
+        },
+        "balanced": {
+          "AUROC": 0.8775228069962115,
+          "PR-AUC": 0.8702672392973622,
+          "precision@0.5": 0.7958426289133952,
+          "recall@0.5": 0.8050827062843942,
+          "AUROC (pooled)": 0.8774909280676113,
+          "precision@top1%": 0.9879274810749683,
+          "recall@top1%": 0.01981303175999534
+        }
+      },
+      "test": {
+        "all": {
+          "AUROC": 0.8613212192064575,
+          "PR-AUC": 0.18071548420310898,
+          "precision@0.5": 0.08062625014330217,
+          "recall@0.5": 0.7636323012335807,
+          "AUROC (pooled)": 0.8610077680195636,
+          "precision@top1%": 0.31497531253282907,
+          "recall@top1%": 0.14186955095112014
+        },
+        "balanced": {
+          "AUROC": 0.8612245137037585,
+          "PR-AUC": 0.8534106139203075,
+          "precision@0.5": 0.7934208436340533,
+          "recall@0.5": 0.7636323012335807,
+          "AUROC (pooled)": 0.8610589566298773,
+          "precision@top1%": 0.9826206424199181,
+          "recall@top1%": 0.019720713051742347
+        }
+      }
+    }
+  ],
+  "identity": {
+    "settings": {
+      "state": "MD",
+      "model": "graph_transformer",
+      "task": "classification",
+      "use_node2vec": false,
+      "epochs": 100,
+      "lr": 0.001,
+      "hidden_channels": 256,
+      "num_layers": 2,
+      "dropout": 0.0,
+      "num_heads": 4,
+      "eval_every": 5,
+      "select_protocol": "all",
+      "run_name": "MD_graph_transformer_classification_no_n2v_hist_none",
+      "history_mode": "none",
+      "smoke_test": false,
+      "history_groups": [],
+      "history_min_months": 0
+    },
+    "source_sha256": "2d4ee3d165ef5d376dd801f5de6785ea525b48b8de8750f273caf1e054edfc5d",
+    "data_fingerprint": "5fdc96f825637978dbdc8d2f46f59cf13421ebe913f53fbac288b1f592e2da3f",
+    "history_fingerprint": null
+  },
+  "provenance": {
+    "git_commit": "374825d1253c8f7a97fe4237d52a590285274ed9",
+    "git_dirty": true,
+    "torch_version": "2.14.1+cu132",
+    "numpy_version": "2.5.2",
+    "device": "cuda",
+    "gpu": "NVIDIA GeForce RTX 5080",
+    "splits": {
+      "train": [
+        2015,
+        2016,
+        2017
+      ],
+      "valid": [
+        2018,
+        2019
+      ],
+      "test": [
+        2020,
+        2021,
+        2022
+      ]
+    },
+    "embedding": null
+  },
+  "smoke_only": false,
+  "complete": true
+}

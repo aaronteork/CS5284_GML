@@ -1,0 +1,175 @@
+{
+  "config": {
+    "state": "DE",
+    "model": "graph_transformer",
+    "task": "regression",
+    "use_node2vec": true,
+    "epochs": 100,
+    "lr": 0.001,
+    "hidden_channels": 256,
+    "num_layers": 2,
+    "dropout": 0.0,
+    "num_heads": 4,
+    "eval_every": 5,
+    "select_protocol": "all",
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "device": "cuda",
+    "run_name": "DE_graph_transformer_regression_n2v_hist_none",
+    "history_mode": "none",
+    "data_dir": "data",
+    "history_dir": "data/accident_history/outputs",
+    "output_dir": "",
+    "resume": false,
+    "smoke_test": false,
+    "history_groups": [],
+    "history_min_months": 0
+  },
+  "data": {
+    "num_nodes": 49023,
+    "num_roads": 65252,
+    "target_unit": "physical",
+    "history": null,
+    "months": {
+      "train": 48,
+      "valid": 60,
+      "test": 57
+    }
+  },
+  "provenance": {
+    "git_commit": "374825d1253c8f7a97fe4237d52a590285274ed9",
+    "git_dirty": true,
+    "torch_version": "2.14.1+cu132",
+    "numpy_version": "2.5.2",
+    "device": "cuda",
+    "gpu": "NVIDIA GeForce RTX 5080",
+    "splits": {
+      "train": [
+        2009,
+        2010,
+        2011,
+        2012
+      ],
+      "valid": [
+        2013,
+        2014,
+        2015,
+        2016,
+        2017
+      ],
+      "test": [
+        2018,
+        2019,
+        2020,
+        2021,
+        2022
+      ]
+    },
+    "embedding": {
+      "backend": "baseline-fw.torch-skipgram-v2",
+      "state": "DE",
+      "parameters": {
+        "dimensions": 128,
+        "walk_length": 20,
+        "walks_per_node": 10,
+        "window_size": 5,
+        "epochs": 1,
+        "batch_size": 1024,
+        "lr": 0.01,
+        "seed": 0,
+        "p": 1,
+        "q": 1,
+        "negatives_per_pair": 1,
+        "context_direction": "forward"
+      },
+      "num_nodes": 49023,
+      "torch_version": "2.14.1+cu132",
+      "device": "cuda"
+    }
+  },
+  "identity": {
+    "settings": {
+      "state": "DE",
+      "model": "graph_transformer",
+      "task": "regression",
+      "use_node2vec": true,
+      "epochs": 100,
+      "lr": 0.001,
+      "hidden_channels": 256,
+      "num_layers": 2,
+      "dropout": 0.0,
+      "num_heads": 4,
+      "eval_every": 5,
+      "select_protocol": "all",
+      "run_name": "DE_graph_transformer_regression_n2v_hist_none",
+      "history_mode": "none",
+      "smoke_test": false,
+      "history_groups": [],
+      "history_min_months": 0
+    },
+    "source_sha256": "2d4ee3d165ef5d376dd801f5de6785ea525b48b8de8750f273caf1e054edfc5d",
+    "data_fingerprint": "025ea0999e301125d65daf689c303847967706d110fc747188e0cd72c1537602",
+    "history_fingerprint": null
+  },
+  "seed": 1,
+  "best_epoch": 20,
+  "valid": {
+    "all": {
+      "AUROC": 0.8404111846924905,
+      "PR-AUC": 0.21495369643341264,
+      "precision@0.5": 0.13843104540366735,
+      "recall@0.5": 0.7874463239389944,
+      "AUROC (pooled)": 0.8402755688168903,
+      "precision@top1%": 0.321107708014293,
+      "recall@top1%": 0.08902072397901016,
+      "MAE": 0.18743857265160715,
+      "MSE": 0.17127686581928314,
+      "MAE (accident roads)": 0.46458350395392034,
+      "MAE (no-accident roads)": 0.17702181362307376
+    },
+    "balanced": {
+      "AUROC": 0.8410431553275056,
+      "PR-AUC": 0.8249751470798421,
+      "precision@0.5": 0.811749056891777,
+      "recall@0.5": 0.7874463239389944,
+      "AUROC (pooled)": 0.8410320254991803,
+      "precision@top1%": 0.988895401755975,
+      "recall@top1%": 0.019970942215680996,
+      "MAE": 0.32014526443546254,
+      "MSE": 0.4088954585701978,
+      "MAE (accident roads)": 0.46458350395392034,
+      "MAE (no-accident roads)": 0.17570702491700463
+    }
+  },
+  "test": {
+    "all": {
+      "AUROC": 0.8351352097251286,
+      "PR-AUC": 0.20963777921059698,
+      "precision@0.5": 0.14071246126165393,
+      "recall@0.5": 0.7784475829601561,
+      "AUROC (pooled)": 0.8349605864407127,
+      "precision@top1%": 0.31578947368421056,
+      "recall@top1%": 0.08453158484131024,
+      "MAE": 0.18946098711084325,
+      "MSE": 0.17245021559427323,
+      "MAE (accident roads)": 0.4752141637502654,
+      "MAE (no-accident roads)": 0.17833870549072836
+    },
+    "balanced": {
+      "AUROC": 0.8351736007565362,
+      "PR-AUC": 0.8176628593987438,
+      "precision@0.5": 0.8084307178631052,
+      "recall@0.5": 0.7784475829601561,
+      "AUROC (pooled)": 0.8351771216027652,
+      "precision@top1%": 0.989728923593354,
+      "recall@top1%": 0.019967642181611,
+      "MAE": 0.32647023588886115,
+      "MSE": 0.4014592835999314,
+      "MAE (accident roads)": 0.4752141637502654,
+      "MAE (no-accident roads)": 0.17772630802745695
+    }
+  }
+}

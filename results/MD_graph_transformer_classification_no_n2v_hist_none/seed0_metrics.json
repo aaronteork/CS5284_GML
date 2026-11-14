@@ -1,0 +1,133 @@
+{
+  "config": {
+    "state": "MD",
+    "model": "graph_transformer",
+    "task": "classification",
+    "use_node2vec": false,
+    "epochs": 100,
+    "lr": 0.001,
+    "hidden_channels": 256,
+    "num_layers": 2,
+    "dropout": 0.0,
+    "num_heads": 4,
+    "eval_every": 5,
+    "select_protocol": "all",
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "device": "cuda",
+    "run_name": "MD_graph_transformer_classification_no_n2v_hist_none",
+    "history_mode": "none",
+    "data_dir": "data",
+    "history_dir": "data/accident_history/outputs",
+    "output_dir": "",
+    "resume": true,
+    "smoke_test": false,
+    "history_groups": [],
+    "history_min_months": 0
+  },
+  "data": {
+    "num_nodes": 250565,
+    "num_roads": 317281,
+    "target_unit": "physical",
+    "history": null,
+    "months": {
+      "train": 36,
+      "valid": 24,
+      "test": 36
+    }
+  },
+  "provenance": {
+    "git_commit": "374825d1253c8f7a97fe4237d52a590285274ed9",
+    "git_dirty": true,
+    "torch_version": "2.14.1+cu132",
+    "numpy_version": "2.5.2",
+    "device": "cuda",
+    "gpu": "NVIDIA GeForce RTX 5080",
+    "splits": {
+      "train": [
+        2015,
+        2016,
+        2017
+      ],
+      "valid": [
+        2018,
+        2019
+      ],
+      "test": [
+        2020,
+        2021,
+        2022
+      ]
+    },
+    "embedding": null
+  },
+  "identity": {
+    "settings": {
+      "state": "MD",
+      "model": "graph_transformer",
+      "task": "classification",
+      "use_node2vec": false,
+      "epochs": 100,
+      "lr": 0.001,
+      "hidden_channels": 256,
+      "num_layers": 2,
+      "dropout": 0.0,
+      "num_heads": 4,
+      "eval_every": 5,
+      "select_protocol": "all",
+      "run_name": "MD_graph_transformer_classification_no_n2v_hist_none",
+      "history_mode": "none",
+      "smoke_test": false,
+      "history_groups": [],
+      "history_min_months": 0
+    },
+    "source_sha256": "2d4ee3d165ef5d376dd801f5de6785ea525b48b8de8750f273caf1e054edfc5d",
+    "data_fingerprint": "5fdc96f825637978dbdc8d2f46f59cf13421ebe913f53fbac288b1f592e2da3f",
+    "history_fingerprint": null
+  },
+  "seed": 0,
+  "best_epoch": 40,
+  "valid": {
+    "all": {
+      "AUROC": 0.8771013323373891,
+      "PR-AUC": 0.21392240831417625,
+      "precision@0.5": 0.08999321751239502,
+      "recall@0.5": 0.8011305598784942,
+      "AUROC (pooled)": 0.8769968810899544,
+      "precision@top1%": 0.36414014077108936,
+      "recall@top1%": 0.14843429112188075
+    },
+    "balanced": {
+      "AUROC": 0.8777647842725247,
+      "PR-AUC": 0.8695808778944262,
+      "precision@0.5": 0.7976241820147064,
+      "recall@0.5": 0.8011305598784942,
+      "AUROC (pooled)": 0.8777315441800215,
+      "precision@top1%": 0.98529850215307,
+      "recall@top1%": 0.019760260162084493
+    }
+  },
+  "test": {
+    "all": {
+      "AUROC": 0.8614990500158213,
+      "PR-AUC": 0.17667615435622996,
+      "precision@0.5": 0.08410485403458508,
+      "recall@0.5": 0.7428805500350828,
+      "AUROC (pooled)": 0.8603227215114901,
+      "precision@top1%": 0.3088997443709073,
+      "recall@top1%": 0.139028612949399
+    },
+    "balanced": {
+      "AUROC": 0.8613372963229325,
+      "PR-AUC": 0.8519915763414196,
+      "precision@0.5": 0.8014793262256882,
+      "recall@0.5": 0.7428805500350828,
+      "AUROC (pooled)": 0.8607104269191685,
+      "precision@top1%": 0.9826451510589193,
+      "recall@top1%": 0.019721302900058843
+    }
+  }
+}

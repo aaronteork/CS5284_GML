@@ -1,0 +1,159 @@
+{
+  "config": {
+    "state": "DE",
+    "model": "gatedgcn",
+    "task": "classification",
+    "use_node2vec": true,
+    "epochs": 100,
+    "lr": 0.001,
+    "hidden_channels": 256,
+    "num_layers": 2,
+    "dropout": 0.0,
+    "num_heads": 4,
+    "eval_every": 5,
+    "select_protocol": "all",
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "device": "cuda",
+    "run_name": "DE_gatedgcn_classification_n2v_hist_none",
+    "history_mode": "none",
+    "data_dir": "data",
+    "history_dir": "data/accident_history/outputs",
+    "output_dir": "",
+    "resume": false,
+    "smoke_test": false,
+    "history_groups": [],
+    "history_min_months": 0
+  },
+  "data": {
+    "num_nodes": 49023,
+    "num_roads": 65252,
+    "target_unit": "physical",
+    "history": null,
+    "months": {
+      "train": 48,
+      "valid": 60,
+      "test": 57
+    }
+  },
+  "provenance": {
+    "git_commit": "374825d1253c8f7a97fe4237d52a590285274ed9",
+    "git_dirty": true,
+    "torch_version": "2.14.1+cu132",
+    "numpy_version": "2.5.2",
+    "device": "cuda",
+    "gpu": "NVIDIA GeForce RTX 5080",
+    "splits": {
+      "train": [
+        2009,
+        2010,
+        2011,
+        2012
+      ],
+      "valid": [
+        2013,
+        2014,
+        2015,
+        2016,
+        2017
+      ],
+      "test": [
+        2018,
+        2019,
+        2020,
+        2021,
+        2022
+      ]
+    },
+    "embedding": {
+      "backend": "baseline-fw.torch-skipgram-v2",
+      "state": "DE",
+      "parameters": {
+        "dimensions": 128,
+        "walk_length": 20,
+        "walks_per_node": 10,
+        "window_size": 5,
+        "epochs": 1,
+        "batch_size": 1024,
+        "lr": 0.01,
+        "seed": 0,
+        "p": 1,
+        "q": 1,
+        "negatives_per_pair": 1,
+        "context_direction": "forward"
+      },
+      "num_nodes": 49023,
+      "torch_version": "2.14.1+cu132",
+      "device": "cuda"
+    }
+  },
+  "identity": {
+    "settings": {
+      "state": "DE",
+      "model": "gatedgcn",
+      "task": "classification",
+      "use_node2vec": true,
+      "epochs": 100,
+      "lr": 0.001,
+      "hidden_channels": 256,
+      "num_layers": 2,
+      "dropout": 0.0,
+      "num_heads": 4,
+      "eval_every": 5,
+      "select_protocol": "all",
+      "run_name": "DE_gatedgcn_classification_n2v_hist_none",
+      "history_mode": "none",
+      "smoke_test": false,
+      "history_groups": [],
+      "history_min_months": 0
+    },
+    "source_sha256": "2d4ee3d165ef5d376dd801f5de6785ea525b48b8de8750f273caf1e054edfc5d",
+    "data_fingerprint": "025ea0999e301125d65daf689c303847967706d110fc747188e0cd72c1537602",
+    "history_fingerprint": null
+  },
+  "seed": 2,
+  "best_epoch": 10,
+  "valid": {
+    "all": {
+      "AUROC": 0.8796572396797575,
+      "PR-AUC": 0.275114686678976,
+      "precision@0.5": 0.12439016814490086,
+      "recall@0.5": 0.8188939734739781,
+      "AUROC (pooled)": 0.8793240998463604,
+      "precision@top1%": 0.4776927003573252,
+      "recall@top1%": 0.13227913034793243
+    },
+    "balanced": {
+      "AUROC": 0.8800652085652134,
+      "PR-AUC": 0.8699455829502897,
+      "precision@0.5": 0.7915136067171452,
+      "recall@0.5": 0.8188939734739781,
+      "AUROC (pooled)": 0.8799541279767039,
+      "precision@top1%": 0.9814277270808521,
+      "recall@top1%": 0.01982022632095313
+    }
+  },
+  "test": {
+    "all": {
+      "AUROC": 0.8743112410807747,
+      "PR-AUC": 0.2672058667933906,
+      "precision@0.5": 0.1257934032364414,
+      "recall@0.5": 0.8132607073142726,
+      "AUROC (pooled)": 0.8739155981094294,
+      "precision@top1%": 0.4661615754547164,
+      "recall@top1%": 0.12482592048226213
+    },
+    "balanced": {
+      "AUROC": 0.8744418079105939,
+      "PR-AUC": 0.8637105701868857,
+      "precision@0.5": 0.7878625656998248,
+      "recall@0.5": 0.8132607073142726,
+      "AUROC (pooled)": 0.8743166767728686,
+      "precision@top1%": 0.9833048136784104,
+      "recall@top1%": 0.01983777955907444
+    }
+  }
+}
