@@ -1,0 +1,428 @@
+{
+  "config": {
+    "state": "DE",
+    "model": "graphsage",
+    "task": "classification",
+    "use_node2vec": true,
+    "epochs": 100,
+    "lr": 0.001,
+    "hidden_channels": 256,
+    "num_layers": 2,
+    "dropout": 0.0,
+    "eval_every": 5,
+    "select_protocol": "all",
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "device": "cuda",
+    "run_name": "DE_graphsage_classification_n2v_osm_all"
+  },
+  "data": {
+    "num_nodes": 49023,
+    "num_roads": 65252,
+    "target_unit": "physical",
+    "months": {
+      "train": 48,
+      "valid": 60,
+      "test": 57
+    }
+  },
+  "summary": {
+    "valid": {
+      "all": {
+        "AUROC": {
+          "mean": 0.8819860895306082,
+          "std": 0.0008141393838897239
+        },
+        "PR-AUC": {
+          "mean": 0.2814640398659386,
+          "std": 0.002393417617973501
+        },
+        "precision@0.5": {
+          "mean": 0.13013512565527596,
+          "std": 0.004387515314948486
+        },
+        "recall@0.5": {
+          "mean": 0.8067990852447534,
+          "std": 0.011359359063573028
+        },
+        "AUROC (pooled)": {
+          "mean": 0.8817188594557585,
+          "std": 0.0006964636827198713
+        },
+        "precision@top1%": {
+          "mean": 0.4799217287731836,
+          "std": 0.0029458663424408458
+        },
+        "recall@top1%": {
+          "mean": 0.1328664983547981,
+          "std": 0.000827516451633231
+        }
+      },
+      "balanced": {
+        "AUROC": {
+          "mean": 0.8825878044156291,
+          "std": 0.0008445028478295414
+        },
+        "PR-AUC": {
+          "mean": 0.8722549488448034,
+          "std": 0.0010170594647002794
+        },
+        "precision@0.5": {
+          "mean": 0.8003571207095176,
+          "std": 0.005965387928546513
+        },
+        "recall@0.5": {
+          "mean": 0.8067990852447534,
+          "std": 0.011359359063573028
+        },
+        "AUROC (pooled)": {
+          "mean": 0.8824635392443884,
+          "std": 0.0008042804807792544
+        },
+        "precision@top1%": {
+          "mean": 0.985702418467822,
+          "std": 0.0032137466773464836
+        },
+        "recall@top1%": {
+          "mean": 0.019906830166762608,
+          "std": 6.494352071023142e-05
+        }
+      }
+    },
+    "test": {
+      "all": {
+        "AUROC": {
+          "mean": 0.8771795534339191,
+          "std": 0.0007885778083163722
+        },
+        "PR-AUC": {
+          "mean": 0.2740190544277298,
+          "std": 0.0017221902019509438
+        },
+        "precision@0.5": {
+          "mean": 0.132961648089738,
+          "std": 0.004755268279537459
+        },
+        "recall@0.5": {
+          "mean": 0.7990536609637541,
+          "std": 0.013268665514905027
+        },
+        "AUROC (pooled)": {
+          "mean": 0.8767273320234973,
+          "std": 0.0006218938064754383
+        },
+        "precision@top1%": {
+          "mean": 0.471427420004836,
+          "std": 0.0014808321946772661
+        },
+        "recall@top1%": {
+          "mean": 0.12613738436041141,
+          "std": 0.0003452668256511244
+        }
+      },
+      "balanced": {
+        "AUROC": {
+          "mean": 0.8773070115160699,
+          "std": 0.0008801506785414828
+        },
+        "PR-AUC": {
+          "mean": 0.8667004933917631,
+          "std": 0.0007972150867162713
+        },
+        "precision@0.5": {
+          "mean": 0.7975807354467189,
+          "std": 0.006816313426169697
+        },
+        "recall@0.5": {
+          "mean": 0.7990536609637541,
+          "std": 0.013268665514905027
+        },
+        "AUROC (pooled)": {
+          "mean": 0.8771859383572873,
+          "std": 0.0007921341865897344
+        },
+        "precision@top1%": {
+          "mean": 0.986458410172522,
+          "std": 0.0010845872755632147
+        },
+        "recall@top1%": {
+          "mean": 0.019901464787378694,
+          "std": 2.1776898116744497e-05
+        }
+      }
+    }
+  },
+  "runs": [
+    {
+      "seed": 0,
+      "best_epoch": 15,
+      "valid": {
+        "all": {
+          "AUROC": 0.8825709478553717,
+          "PR-AUC": 0.28214026497071243,
+          "precision@0.5": 0.13633789053004153,
+          "recall@0.5": 0.7909083858048412,
+          "AUROC (pooled)": 0.8822286170229742,
+          "precision@top1%": 0.47835630423685555,
+          "recall@top1%": 0.13241497175164188
+        },
+        "balanced": {
+          "AUROC": 0.8830455615262612,
+          "PR-AUC": 0.8725052931611392,
+          "precision@0.5": 0.8087749657509554,
+          "recall@0.5": 0.7909083858048412,
+          "AUROC (pooled)": 0.8828858945255813,
+          "precision@top1%": 0.9857125019889257,
+          "recall@top1%": 0.019906971650103706
+        }
+      },
+      "test": {
+        "all": {
+          "AUROC": 0.8777345716266586,
+          "PR-AUC": 0.27448157722238015,
+          "precision@0.5": 0.13966069491427507,
+          "recall@0.5": 0.7807153519347801,
+          "AUROC (pooled)": 0.8771620656364493,
+          "precision@top1%": 0.47011095886730614,
+          "recall@top1%": 0.12579844148573563
+        },
+        "balanced": {
+          "AUROC": 0.8780493278727189,
+          "PR-AUC": 0.8672034822712487,
+          "precision@0.5": 0.8071883300933415,
+          "recall@0.5": 0.7807153519347801,
+          "AUROC (pooled)": 0.8778834530769135,
+          "precision@top1%": 0.9849744192085875,
+          "recall@top1%": 0.019871715699608505
+        }
+      }
+    },
+    {
+      "seed": 1,
+      "best_epoch": 15,
+      "valid": {
+        "all": {
+          "AUROC": 0.8808347715747459,
+          "PR-AUC": 0.2782536962039795,
+          "precision@0.5": 0.12689332637544837,
+          "recall@0.5": 0.8127031581619343,
+          "AUROC (pooled)": 0.8807341156784557,
+          "precision@top1%": 0.4773608984175599,
+          "recall@top1%": 0.1321572386558211
+        },
+        "balanced": {
+          "AUROC": 0.8814036136544151,
+          "PR-AUC": 0.870903150939081,
+          "precision@0.5": 0.7956647797873809,
+          "recall@0.5": 0.8127031581619343,
+          "AUROC (pooled)": 0.8813377509489339,
+          "precision@top1%": 0.9817613666334536,
+          "recall@top1%": 0.019827220275547897
+        }
+      },
+      "test": {
+        "all": {
+          "AUROC": 0.8760643400078781,
+          "PR-AUC": 0.2717169325484152,
+          "precision@0.5": 0.13012295081967212,
+          "recall@0.5": 0.8047781031117235,
+          "AUROC (pooled)": 0.8758478603355062,
+          "precision@top1%": 0.47349614464952583,
+          "recall@top1%": 0.12661124381841157
+        },
+        "balanced": {
+          "AUROC": 0.8760705657292626,
+          "PR-AUC": 0.8655751686011699,
+          "precision@0.5": 0.7934579571505391,
+          "recall@0.5": 0.8047781031117235,
+          "AUROC (pooled)": 0.8760780237237326,
+          "precision@top1%": 0.986864515119209,
+          "recall@top1%": 0.019909440507450145
+        }
+      }
+    },
+    {
+      "seed": 2,
+      "best_epoch": 15,
+      "valid": {
+        "all": {
+          "AUROC": 0.8825525491617072,
+          "PR-AUC": 0.2839981584231238,
+          "precision@0.5": 0.127174160060338,
+          "recall@0.5": 0.8167857117674848,
+          "AUROC (pooled)": 0.8821938456658457,
+          "precision@top1%": 0.48404798366513535,
+          "recall@top1%": 0.13402728465693137
+        },
+        "balanced": {
+          "AUROC": 0.883314238066211,
+          "PR-AUC": 0.8733564024341898,
+          "precision@0.5": 0.7966316165902168,
+          "recall@0.5": 0.8167857117674848,
+          "AUROC (pooled)": 0.8831669722586503,
+          "precision@top1%": 0.9896333867810866,
+          "recall@top1%": 0.01998629857463622
+        }
+      },
+      "test": {
+        "all": {
+          "AUROC": 0.8777397486672203,
+          "PR-AUC": 0.275858653512394,
+          "precision@0.5": 0.12910129853526683,
+          "recall@0.5": 0.8116675278447583,
+          "AUROC (pooled)": 0.8771720700985363,
+          "precision@top1%": 0.47067515649767605,
+          "recall@top1%": 0.12600246777708704
+        },
+        "balanced": {
+          "AUROC": 0.8778011409462284,
+          "PR-AUC": 0.8673228293028709,
+          "precision@0.5": 0.7920959190962763,
+          "recall@0.5": 0.8116675278447583,
+          "AUROC (pooled)": 0.8775963382712159,
+          "precision@top1%": 0.9875362961897697,
+          "recall@top1%": 0.019923238155077436
+        }
+      }
+    }
+  ],
+  "provenance": {
+    "git_commit": null,
+    "git_dirty": null,
+    "torch_version": "2.5.1+cu124",
+    "numpy_version": "1.26.4",
+    "splits": {
+      "train": [
+        2009,
+        2010,
+        2011,
+        2012
+      ],
+      "valid": [
+        2013,
+        2014,
+        2015,
+        2016,
+        2017
+      ],
+      "test": [
+        2018,
+        2019,
+        2020,
+        2021,
+        2022
+      ]
+    },
+    "embedding": {
+      "backend": "baseline-fw.torch-skipgram-v2",
+      "state": "DE",
+      "parameters": {
+        "dimensions": 128,
+        "walk_length": 20,
+        "walks_per_node": 10,
+        "window_size": 5,
+        "epochs": 1,
+        "batch_size": 1024,
+        "lr": 0.01,
+        "seed": 0,
+        "p": 1,
+        "q": 1,
+        "negatives_per_pair": 1,
+        "context_direction": "forward"
+      },
+      "num_nodes": 49023,
+      "torch_version": "2.5.1+cu124",
+      "device": "cuda"
+    },
+    "osm": {
+      "groups": [
+        "road_character",
+        "intersection_control",
+        "cycle_pedestrian_lighting",
+        "nearby_places",
+        "road_shape"
+      ],
+      "num_features": 70,
+      "feature_names": [
+        "road_character_maxspeed_mph",
+        "road_character_maxspeed_mph__missing",
+        "road_character_lanes",
+        "road_character_lanes__missing",
+        "road_character_surface=asphalt",
+        "road_character_surface=concrete",
+        "road_character_surface=gravel",
+        "road_character_surface=mixed",
+        "road_character_surface=other",
+        "road_character_surface=paved",
+        "road_character_surface=unpaved",
+        "road_character_surface__missing",
+        "road_character_bridge",
+        "road_character_tunnel",
+        "intersection_control_signal_start",
+        "intersection_control_signal_end",
+        "intersection_control_stop_start",
+        "intersection_control_stop_end",
+        "intersection_control_crossing_start",
+        "intersection_control_crossing_end",
+        "intersection_control_roundabout",
+        "intersection_control_signal_midblock",
+        "intersection_control_stop_midblock",
+        "intersection_control_give_way_midblock",
+        "intersection_control_crossing_midblock",
+        "intersection_control_traffic_calming_midblock",
+        "cycle_pedestrian_lighting_cycleway_any",
+        "cycle_pedestrian_lighting_cycleway_any__missing",
+        "cycle_pedestrian_lighting_sidewalk_any",
+        "cycle_pedestrian_lighting_sidewalk_any__missing",
+        "cycle_pedestrian_lighting_lit",
+        "cycle_pedestrian_lighting_lit__missing",
+        "nearby_places_school_100m",
+        "nearby_places_school_250m",
+        "nearby_places_school_500m",
+        "nearby_places_school_1000m",
+        "nearby_places_school_nearest_m",
+        "nearby_places_bus_stop_100m",
+        "nearby_places_bus_stop_250m",
+        "nearby_places_bus_stop_500m",
+        "nearby_places_bus_stop_1000m",
+        "nearby_places_bus_stop_nearest_m",
+        "nearby_places_parking_100m",
+        "nearby_places_parking_250m",
+        "nearby_places_parking_500m",
+        "nearby_places_parking_1000m",
+        "nearby_places_parking_nearest_m",
+        "nearby_places_food_100m",
+        "nearby_places_food_250m",
+        "nearby_places_food_500m",
+        "nearby_places_food_1000m",
+        "nearby_places_food_nearest_m",
+        "nearby_places_bar_pub_100m",
+        "nearby_places_bar_pub_250m",
+        "nearby_places_bar_pub_500m",
+        "nearby_places_bar_pub_1000m",
+        "nearby_places_bar_pub_nearest_m",
+        "nearby_places_crossing_100m",
+        "nearby_places_crossing_250m",
+        "nearby_places_crossing_500m",
+        "nearby_places_crossing_1000m",
+        "nearby_places_crossing_nearest_m",
+        "nearby_places_signal_100m",
+        "nearby_places_signal_250m",
+        "nearby_places_signal_500m",
+        "nearby_places_signal_1000m",
+        "nearby_places_signal_nearest_m",
+        "road_shape_sinuosity",
+        "road_shape_sinuosity__missing",
+        "osm_unmatched"
+      ],
+      "table_file": "DE_osm_features.parquet",
+      "baseline_commit": "299962d",
+      "snapshot_date": "2026-10-18",
+      "pipeline_version": "3.1"
+    }
+  },
+  "complete": true
+}

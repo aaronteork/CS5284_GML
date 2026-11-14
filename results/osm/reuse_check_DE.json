@@ -1,0 +1,26 @@
+{
+  "old_table": "DE_osm_model_features.parquet",
+  "new_table": "DE_osm_features.parquet",
+  "runs": {
+    "DE_graphsage_classification_n2v_osm_all_filled": {
+      "groups": [
+        "road_character_filled",
+        "intersection_control",
+        "cycle_pedestrian_lighting",
+        "nearby_places",
+        "road_shape"
+      ],
+      "columns": 68,
+      "same_input_columns_in_order": false,
+      "same_model_inputs": false
+    }
+  },
+  "same_columns_in_order": true,
+  "columns_with_different_values": [
+    "road_character_surface",
+    "road_character_surface_filled"
+  ],
+  "columns_differing_only_in_storage": [],
+  "same_groups": true,
+  "result": "FAIL: retrain these runs (set FORCE_RERUN = True)"
+}

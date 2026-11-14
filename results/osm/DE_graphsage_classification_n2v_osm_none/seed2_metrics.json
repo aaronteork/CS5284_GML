@@ -1,0 +1,132 @@
+{
+  "config": {
+    "state": "DE",
+    "model": "graphsage",
+    "task": "classification",
+    "use_node2vec": true,
+    "epochs": 100,
+    "lr": 0.001,
+    "hidden_channels": 256,
+    "num_layers": 2,
+    "dropout": 0.0,
+    "eval_every": 5,
+    "select_protocol": "all",
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "device": "cuda",
+    "run_name": "DE_graphsage_classification_n2v_osm_none"
+  },
+  "data": {
+    "num_nodes": 49023,
+    "num_roads": 65252,
+    "target_unit": "physical",
+    "months": {
+      "train": 48,
+      "valid": 60,
+      "test": 57
+    }
+  },
+  "provenance": {
+    "git_commit": null,
+    "git_dirty": null,
+    "torch_version": "2.5.1+cu124",
+    "numpy_version": "1.26.4",
+    "splits": {
+      "train": [
+        2009,
+        2010,
+        2011,
+        2012
+      ],
+      "valid": [
+        2013,
+        2014,
+        2015,
+        2016,
+        2017
+      ],
+      "test": [
+        2018,
+        2019,
+        2020,
+        2021,
+        2022
+      ]
+    },
+    "embedding": {
+      "backend": "baseline-fw.torch-skipgram-v2",
+      "state": "DE",
+      "parameters": {
+        "dimensions": 128,
+        "walk_length": 20,
+        "walks_per_node": 10,
+        "window_size": 5,
+        "epochs": 1,
+        "batch_size": 1024,
+        "lr": 0.01,
+        "seed": 0,
+        "p": 1,
+        "q": 1,
+        "negatives_per_pair": 1,
+        "context_direction": "forward"
+      },
+      "num_nodes": 49023,
+      "torch_version": "2.5.1+cu124",
+      "device": "cuda"
+    },
+    "osm": {
+      "groups": [],
+      "num_features": 0,
+      "feature_names": [],
+      "table_file": "DE_osm_model_features.parquet",
+      "baseline_commit": "299962d",
+      "snapshot_date": "2026-10-18",
+      "pipeline_version": "2.2"
+    }
+  },
+  "seed": 2,
+  "best_epoch": 15,
+  "valid": {
+    "all": {
+      "AUROC": 0.8797031211121679,
+      "PR-AUC": 0.27275982830172196,
+      "precision@0.5": 0.12907660080394043,
+      "recall@0.5": 0.8037765383611967,
+      "AUROC (pooled)": 0.8794141167203676,
+      "precision@top1%": 0.4692700357325166,
+      "recall@top1%": 0.12989901648791807
+    },
+    "balanced": {
+      "AUROC": 0.8803509460163357,
+      "PR-AUC": 0.8692466417672243,
+      "precision@0.5": 0.7987527589952003,
+      "recall@0.5": 0.8037765383611967,
+      "AUROC (pooled)": 0.8802379096542864,
+      "precision@top1%": 0.981455679420467,
+      "recall@top1%": 0.019820793672665107
+    }
+  },
+  "test": {
+    "all": {
+      "AUROC": 0.8747797290701953,
+      "PR-AUC": 0.26509912443206674,
+      "precision@0.5": 0.13079965626434684,
+      "recall@0.5": 0.7974006774600988,
+      "AUROC (pooled)": 0.8742787518298676,
+      "precision@top1%": 0.4647107815480508,
+      "recall@top1%": 0.12433838801469442
+    },
+    "balanced": {
+      "AUROC": 0.874704737211188,
+      "PR-AUC": 0.8633701516758343,
+      "precision@0.5": 0.79486794288494,
+      "recall@0.5": 0.7974006774600988,
+      "AUROC (pooled)": 0.8745509779263199,
+      "precision@top1%": 0.9817080969338371,
+      "recall@top1%": 0.019805879732090446
+    }
+  }
+}

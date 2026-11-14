@@ -1,4 +1,4 @@
-# Pinned comparison baseline; extracted from osm_baseline_comparison.ipynb, cell 12.
+# Pinned comparison baseline; extracted from notebooks/osm_baseline_comparison.ipynb, cell 12.
 import numpy as np
 from sklearn.metrics import average_precision_score, precision_score, recall_score, roc_auc_score
 

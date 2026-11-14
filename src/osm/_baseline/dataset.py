@@ -1,4 +1,4 @@
-# Pinned comparison baseline; extracted from osm_baseline_comparison.ipynb, cell 8.
+# Pinned comparison baseline; extracted from notebooks/osm_baseline_comparison.ipynb, cell 8.
 import os
 import json
 import shutil

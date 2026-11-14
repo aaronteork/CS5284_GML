@@ -1,4 +1,4 @@
-"""OSM preparation methods extracted from osm_features_and_eda.ipynb.
+"""OSM preparation methods extracted from notebooks/osm_features_and_eda.ipynb.
 
 No notebook setup, package installation, Drive mounting or experiments execute on
 import. Geospatial dependencies are optional until a geometry method is called.
@@ -38,7 +38,7 @@ def shape(*args, **kwargs):
 FIGURE_DIR = None
 ENVIRONMENT = {}
 
-# Source: osm_features_and_eda.ipynb, cell 4 (zero-based).
+# Source: notebooks/osm_features_and_eda.ipynb, cell 4 (zero-based).
 STATES = ["DE"]
 
 FORCE_REBUILD = False
@@ -89,7 +89,7 @@ MIN_ROADS_FOR_ROAD_TYPE = 100
 RANDOM_SEED = 0
 
 
-# Source: osm_features_and_eda.ipynb, cell 6 (zero-based).
+# Source: notebooks/osm_features_and_eda.ipynb, cell 6 (zero-based).
 STATE_COLORS = {"DE": "#2a78d6", "MD": "#eb6834"}
 
 SURFACE, INK, INK_SECONDARY, INK_MUTED, GRID_COLOR = "#fcfcfb", "#0b0b0b", "#52514e", "#8a8984", "#e4e3df"
@@ -107,7 +107,7 @@ def save_figure(fig, name, figure_dir=None):
     fig.savefig(Path(figure_dir) / f"{name}.png", dpi=200, bbox_inches="tight")
 
 
-# Source: osm_features_and_eda.ipynb, cell 10 (zero-based).
+# Source: notebooks/osm_features_and_eda.ipynb, cell 10 (zero-based).
 def environment_record():
     """Versions of the libraries that matter for reproducing the numbers."""
     import statsmodels, scipy, matplotlib as mpl
@@ -121,7 +121,7 @@ def environment_record():
     return record
 
 
-# Source: osm_features_and_eda.ipynb, cell 12 (zero-based).
+# Source: notebooks/osm_features_and_eda.ipynb, cell 12 (zero-based).
 def as_text_list(value):
     """Turn an OSM tag value into a list of lowercase strings.
 
@@ -215,7 +215,7 @@ def most_common_value(values):
     return lists.map(lambda items: np.nan if not items else sorted(items, key=lambda item: (-counts.get(item, 0), item))[0])
 
 
-# Source: osm_features_and_eda.ipynb, cell 13 (zero-based).
+# Source: notebooks/osm_features_and_eda.ipynb, cell 13 (zero-based).
 EARTH_RADIUS_M = 6371000.0
 
 def straight_line_distance_m(lat1, lon1, lat2, lon2):
@@ -257,7 +257,7 @@ def nearest_osm_road(osm_roads, x, y):
     return position, nearest_distance
 
 
-# Source: osm_features_and_eda.ipynb, cell 14 (zero-based).
+# Source: notebooks/osm_features_and_eda.ipynb, cell 14 (zero-based).
 def poisson_interval(k, exposure):
     """Exact 95% Poisson interval for a rate: k events over `exposure` (arrays or numbers). Returns (low, high)."""
     k = np.asarray(k, dtype=float)
@@ -294,7 +294,7 @@ def weighted_trend(positions, log_ratio, se_log):
     return float(np.exp(slope)), float(2 * (1 - norm.cdf(abs(slope / slope_se))))
 
 
-# Source: osm_features_and_eda.ipynb, cell 15 (zero-based).
+# Source: notebooks/osm_features_and_eda.ipynb, cell 15 (zero-based).
 def show_markdown(text):
     """Show text as formatted Markdown in the notebook."""
     display(Markdown(text))
@@ -352,7 +352,7 @@ def table_to_markdown(table, float_format="{:,.3g}"):
     return "\n".join(lines)
 
 
-# Source: osm_features_and_eda.ipynb, cell 19 (zero-based).
+# Source: notebooks/osm_features_and_eda.ipynb, cell 19 (zero-based).
 STATE_NAMES = {"DE": "delaware", "MD": "maryland"}
 
 ROAD_HIGHWAY_VALUES = ["motorway", "motorway_link", "trunk", "trunk_link", "primary", "primary_link",
@@ -515,7 +515,7 @@ def saved_features_are_current(state, data_dir):
     return True
 
 
-# Source: osm_features_and_eda.ipynb, cell 23 (zero-based).
+# Source: notebooks/osm_features_and_eda.ipynb, cell 23 (zero-based).
 def load_dataset_node_and_road_tables(info):
     """Turn the dataset's graph into two plain tables, one row per node and one per road.
 
@@ -684,7 +684,7 @@ def read_benchmark(drive_path, local_path, states):
     return data
 
 
-# Source: osm_features_and_eda.ipynb, cell 29 (zero-based).
+# Source: notebooks/osm_features_and_eda.ipynb, cell 29 (zero-based).
 def detect_partial_months(monthly, window_months=12, threshold=0.5):
     """Months whose total is below `threshold` times the median of the other months within `window_months` either side."""
     flagged = []
@@ -784,7 +784,7 @@ def build_cleaning_log(state, info, nodes, roads, length_ratio, highway_class, m
     return pd.DataFrame(rows, columns=columns).set_index("decision")
 
 
-# Source: osm_features_and_eda.ipynb, cell 32 (zero-based).
+# Source: notebooks/osm_features_and_eda.ipynb, cell 32 (zero-based).
 def compare_dataset_and_osm_sizes(nodes, roads, osm_nodes, osm_roads):
     """Compare how many nodes and roads the dataset and OpenStreetMap have (ratios near 1 mean similar networks).
 
@@ -941,7 +941,7 @@ def matching_diagnostics(nodes, roads, sizes):
     }
 
 
-# Source: osm_features_and_eda.ipynb, cell 35 (zero-based).
+# Source: notebooks/osm_features_and_eda.ipynb, cell 35 (zero-based).
 FEATURE_GROUP_PREFIXES = ("road_character", "intersection_control", "cycle_pedestrian_lighting", "nearby_places", "road_shape")
 
 def feature_group_of_column(column):
@@ -992,7 +992,7 @@ def build_road_character_features(roads, osm_roads):
     return features
 
 
-# Source: osm_features_and_eda.ipynb, cell 37 (zero-based).
+# Source: notebooks/osm_features_and_eda.ipynb, cell 37 (zero-based).
 def build_intersection_control_features(nodes, roads, osm_roads, osm_nodes, osm_graph):
     """intersection_control features: what controls traffic at each end of the road, and how busy the junctions are.
 
@@ -1159,7 +1159,7 @@ def midblock_recovery_stats(tagged_nodes, osm_nodes, midblock_counts):
     return table
 
 
-# Source: osm_features_and_eda.ipynb, cell 39 (zero-based).
+# Source: notebooks/osm_features_and_eda.ipynb, cell 39 (zero-based).
 def build_cycle_pedestrian_lighting_features(roads, osm_roads):
     """cycle_pedestrian_lighting features: infrastructure for cyclists and pedestrians, and street lighting.
 
@@ -1198,7 +1198,7 @@ def build_cycle_pedestrian_lighting_features(roads, osm_roads):
     return features
 
 
-# Source: osm_features_and_eda.ipynb, cell 41 (zero-based).
+# Source: notebooks/osm_features_and_eda.ipynb, cell 41 (zero-based).
 def read_osm_places(state, data_dir, local_dir):
     """Read the schools, bars, restaurants, bus stops and parking from `{state}_osm_places.zip`.
 
@@ -1276,7 +1276,7 @@ def build_nearby_places_features(places, tagged_nodes, nodes, roads, metric_crs)
     return features
 
 
-# Source: osm_features_and_eda.ipynb, cell 43 (zero-based).
+# Source: notebooks/osm_features_and_eda.ipynb, cell 43 (zero-based).
 def build_road_shape_features(nodes, roads):
     """road_shape feature: how curvy each road is. No OSM tags are needed.
 
@@ -1295,7 +1295,7 @@ def build_road_shape_features(nodes, roads):
     return features
 
 
-# Source: osm_features_and_eda.ipynb, cell 45 (zero-based).
+# Source: notebooks/osm_features_and_eda.ipynb, cell 45 (zero-based).
 US_MPH_PATTERN_VALUES = (15, 25, 35, 45, 55, 65, 75)
 
 def osm_tag_cleaning_evidence(osm_roads):
@@ -1356,7 +1356,7 @@ def tag_cleaning_table(evidence):
     return pd.DataFrame(rows, columns=["tag", "rule", "OSM road pieces", "share of tagged"]).set_index(["tag", "rule"])
 
 
-# Source: osm_features_and_eda.ipynb, cell 47 (zero-based).
+# Source: notebooks/osm_features_and_eda.ipynb, cell 47 (zero-based).
 ROAD_ID_COLUMNS = ["node_1_idx", "node_2_idx", "road_u", "road_v", "has_reverse", "u_lt_v",
                    "length_m", "match_type", "match_dist_m", "len_ratio"]
 
@@ -1512,7 +1512,7 @@ def get_state_features(state, data, data_dir, local_dir, force=False):
     return build_state_features(state, data, data_dir, local_dir)
 
 
-# Source: osm_features_and_eda.ipynb, cell 50 (zero-based).
+# Source: notebooks/osm_features_and_eda.ipynb, cell 50 (zero-based).
 FEATURE_CATALOGUE = [
     ("road_character", "speed limit", "`maxspeed` tag on the matched OSM road", "parsed to mph; km/h converted; unit-less read as mph (A10); highest kept if several",
      "mph", "yes", "empty = not tagged or unmatched (unknown)", "road_character_maxspeed_mph"),
@@ -1553,7 +1553,7 @@ def feature_catalogue(results):
     return table.set_index(["group", "feature"])
 
 
-# Source: osm_features_and_eda.ipynb, cell 54 (zero-based).
+# Source: notebooks/osm_features_and_eda.ipynb, cell 54 (zero-based).
 MATCH_TIERS = ["exact", "reverse", "nearest", "unmatched"]
 
 def road_match_shares(results):
@@ -1607,7 +1607,7 @@ def threshold_sensitivity(roads, distances=(10, 20, 30, 50, 75), ratio_ranges=((
     return table
 
 
-# Source: osm_features_and_eda.ipynb, cell 59 (zero-based).
+# Source: notebooks/osm_features_and_eda.ipynb, cell 59 (zero-based).
 COVERAGE_TAGS = {"speed limit": "road_character_maxspeed_mph", "lanes": "road_character_lanes", "surface": "road_character_surface",
                  "cycleway": "cycle_pedestrian_lighting_cycleway_any", "sidewalk": "cycle_pedestrian_lighting_sidewalk_any", "lit": "cycle_pedestrian_lighting_lit"}
 
@@ -1717,7 +1717,7 @@ def matching_funnel(result, totals):
                          for label, mask in steps]).set_index("step")
 
 
-# Source: osm_features_and_eda.ipynb, cell 68 (zero-based).
+# Source: notebooks/osm_features_and_eda.ipynb, cell 68 (zero-based).
 SPEED_STEP_MPH = 5
 
 def physical_attribute_table(roads, road_features, highway_class):
@@ -1958,7 +1958,7 @@ def coverage_after_filling(state_fill, result, totals):
     return table
 
 
-# Source: osm_features_and_eda.ipynb, cell 71 (zero-based).
+# Source: notebooks/osm_features_and_eda.ipynb, cell 71 (zero-based).
 FEATURE_LABELS = {"road_character_maxspeed_mph": "speed limit", "road_character_lanes": "lanes", "road_character_surface": "surface"}
 
 def validation_table(fills):
@@ -1978,7 +1978,7 @@ def validation_table(fills):
     return pd.DataFrame(rows).set_index(["state", "feature"])
 
 
-# Source: osm_features_and_eda.ipynb, cell 81 (zero-based).
+# Source: notebooks/osm_features_and_eda.ipynb, cell 81 (zero-based).
 def expected_accidents(levels, strata_columns, n_years):
     """How many accidents each road would have if only its stratum mattered.
 
@@ -2062,7 +2062,7 @@ def build_physical_road_table(roads, road_features, highway_class, accident_tota
     return directed.groupby(["road_u", "road_v"]).agg(how)
 
 
-# Source: osm_features_and_eda.ipynb, cell 82 (zero-based).
+# Source: notebooks/osm_features_and_eda.ipynb, cell 82 (zero-based).
 LEVEL_ORDER = {
     "length": ["<50 m", "50-100 m", "100-200 m", "200-500 m", "0.5-1 km", ">1 km"],
     "speed_limit": ["<=20", "25", "30", "35", "40", "45", "50", "55+"],
@@ -2291,7 +2291,7 @@ def analyse_state_window(state, window, result, info):
             "verdict": verdict_by_variable(controlled), "accidents": float(levels["accidents"].sum()), "physical_roads": len(levels)}
 
 
-# Source: osm_features_and_eda.ipynb, cell 87 (zero-based).
+# Source: notebooks/osm_features_and_eda.ipynb, cell 87 (zero-based).
 def within_road_type_table(analyses_window, variables=("speed_limit", "lanes"), top_types=4):
     """Controlled ratio of each variable by value inside each of the main road types (length held fixed), per state.
 
@@ -2317,7 +2317,7 @@ def within_road_type_table(analyses_window, variables=("speed_limit", "lanes"), 
     return pd.DataFrame(rows)
 
 
-# Source: osm_features_and_eda.ipynb, cell 91 (zero-based).
+# Source: notebooks/osm_features_and_eda.ipynb, cell 91 (zero-based).
 DENSE_MODEL_FEATURES = ["bridge", "signal_at_end", "stop_at_end", "crossing_at_end", "roundabout", "signal_midblock", "stop_midblock",
                         "crossing_midblock", "calming_midblock", "crossings_within_250m", "parking_within_250m", "food_within_250m",
                         "signals_within_250m", "nearest_school", "sinuosity"]
@@ -2425,7 +2425,7 @@ def compare_joint_models(joint_a, joint_b, name_a, name_b):
     return merged[columns]
 
 
-# Source: osm_features_and_eda.ipynb, cell 94 (zero-based).
+# Source: notebooks/osm_features_and_eda.ipynb, cell 94 (zero-based).
 def effect_table(models_window, first, second):
     """Both states' effects side by side for feature levels (not controls) with the same reference level."""
     tables = {s: models_window[s].query("not is_control").set_index(["variable", "level"]) for s in (first, second)}
@@ -2541,7 +2541,7 @@ def unclear_levels_table(effects):
     return rest[["group", "accidents", "rate_ratio", "ci_low", "ci_high", "reason"]]
 
 
-# Source: osm_features_and_eda.ipynb, cell 98 (zero-based).
+# Source: notebooks/osm_features_and_eda.ipynb, cell 98 (zero-based).
 def summarise_feature_groups(models_window, stability_states, stability_windows, first, second):
     """One row per feature group: levels tested, clear in each state, clear in both with the same direction, and also stable in the paper's training years."""
     rows = {}
@@ -2573,7 +2573,7 @@ def summarise_feature_groups(models_window, stability_states, stability_windows,
     return summary
 
 
-# Source: osm_features_and_eda.ipynb, cell 100 (zero-based).
+# Source: notebooks/osm_features_and_eda.ipynb, cell 100 (zero-based).
 def data_dictionary_entries():
     """Return {column: (group, kind, unit, meaning, missing_rule)} for every column the pipeline can write."""
     entries = {}
@@ -2622,7 +2622,7 @@ def data_dictionary_entries():
     return entries
 
 
-# Source: osm_features_and_eda.ipynb, cell 101 (zero-based).
+# Source: notebooks/osm_features_and_eda.ipynb, cell 101 (zero-based).
 MODEL_READY_ID_COLUMNS = ["node_1_idx", "node_2_idx", "road_u", "road_v", "has_reverse", "u_lt_v", "length_m", "match_type", "has_osm_match"]
 
 def build_model_ready_table(state, result, state_fill):
