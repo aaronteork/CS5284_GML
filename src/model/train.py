@@ -66,8 +66,15 @@ class Config:
     # Backwards-compatible optional feature-group path already present on main.
     history_groups: list = field(default_factory=list)
     history_min_months: int = 0
+    # OpenStreetMap road-feature groups appended to the static road features ("all" = the five
+    # groups of the OSM experiment). Empty = no OSM, identical to the original pipeline.
+    osm_groups: list = field(default_factory=list)
+    osm_path: str = ""                     # default: <data_dir>/<STATE>_osm_features.parquet
 
     def __post_init__(self):
+        if self.osm_groups:
+            from src.data.osm import expand_osm_groups
+            self.osm_groups = expand_osm_groups(self.osm_groups)
         if self.epochs < 1 or self.eval_every < 1 or not self.seeds:
             raise ValueError("epochs, eval_every and seeds must be nonempty/positive")
         if self.history_mode not in ("none", "own", "all"):
@@ -81,6 +88,9 @@ class Config:
         if not self.run_name:
             embedding = "n2v" if self.use_node2vec else "no_n2v"
             self.run_name = f"{self.state}_{self.model}_{self.task}_{embedding}"
+            if self.osm_groups:
+                from src.data.osm import osm_label
+                self.run_name += f"_osm_{osm_label(self.osm_groups)}"
             if self.history_groups or self.history_min_months:
                 groups = "-".join(self.history_groups) or "none"
                 self.run_name += f"_groups_{groups}_warmup{self.history_min_months}"
@@ -137,6 +147,9 @@ def dataset_fingerprint(dataset, cfg):
     if cfg.use_node2vec:
         embedding = node2vec_path(cfg.state, project_path(cfg.data_dir))
         files.append(embedding)
+    osm_path = getattr(base, "osm_path", None) if cfg.osm_groups else None
+    if osm_path is not None:
+        files.append(osm_path)
 
     signatures = []
     for path in files:
@@ -145,6 +158,8 @@ def dataset_fingerprint(dataset, cfg):
         stat = path.stat()
         if embedding is not None and path == embedding:
             label = f"node2vec/{cfg.state}/{path.name}"
+        elif osm_path is not None and path == osm_path:
+            label = f"osm/{path.name}"
         else:
             label = path.relative_to(state_dir).as_posix()
         signatures.append([label, _cached_file_sha256(str(path.resolve()),
@@ -154,7 +169,7 @@ def dataset_fingerprint(dataset, cfg):
 
 def experiment_identity(cfg, dataset):
     settings = asdict(cfg)
-    for key in ("device", "resume", "data_dir", "history_dir", "output_dir", "seeds"):
+    for key in ("device", "resume", "data_dir", "history_dir", "output_dir", "seeds", "osm_path"):
         settings.pop(key)
     digest = hashlib.sha256()
     for path in sorted((ROOT / "src").rglob("*.py")):
@@ -172,10 +187,19 @@ def load_dataset(cfg):
         raise ValueError("Accident-history features are currently validated for Delaware only")
     data_dir, history_dir = project_path(cfg.data_dir), project_path(cfg.history_dir)
     embedding_path = generate_node2vec(cfg.state, data_dir=data_dir, device=cfg.device) if cfg.use_node2vec else None
-    dataset = RoadAccidentDataset(
-        cfg.state, train_years=train_years,
-        data_dir=data_dir, node_embedding_path=embedding_path,
-    )
+    if cfg.osm_groups:
+        # OSM columns join the static road features; history (below) is appended after them.
+        from src.data.osm import OsmRoadAccidentDataset
+        dataset = OsmRoadAccidentDataset(
+            cfg.state, train_years=train_years, data_dir=data_dir,
+            node_embedding_path=embedding_path, osm_groups=cfg.osm_groups,
+            osm_path=project_path(cfg.osm_path) if cfg.osm_path else None,
+        )
+    else:
+        dataset = RoadAccidentDataset(
+            cfg.state, train_years=train_years,
+            data_dir=data_dir, node_embedding_path=embedding_path,
+        )
     if cfg.history_groups or cfg.history_min_months:
         from src.history.integration import HistoryDataset
         dataset = HistoryDataset(dataset, groups=cfg.history_groups, min_history=cfg.history_min_months)
@@ -484,6 +508,13 @@ def parse_args():
                         choices=["own_history", "neighbour_history", "history_coverage"])
     parser.add_argument("--history-min-months", type=int, default=0,
                         help="Common warm-up for the legacy feature-group integration and its control")
+    parser.add_argument("--osm-groups", nargs="*", default=[],
+                        choices=["all", "road_character", "road_character_filled", "intersection_control",
+                                 "cycle_pedestrian_lighting", "nearby_places", "road_shape"],
+                        help="OpenStreetMap feature groups added to the road features ('all' = the five "
+                             "groups of the OSM experiment). Omit for no OSM.")
+    parser.add_argument("--osm-path", default="",
+                        help="OSM feature table; default <data-dir>/<STATE>_osm_features.parquet")
     return Config(**{k.replace("-", "_"): v for k, v in vars(parser.parse_args()).items()})
 
 
