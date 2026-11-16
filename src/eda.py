@@ -558,3 +558,184 @@ def show_risk_map(project_dir, **kwargs):
     """Explicit opt-in wrapper for the existing standalone interactive map."""
     from src.visualization.risk_map import show_risk_map as show
     return show(project_dir, **kwargs)
+
+
+def plot_directed_degree_distribution(data):
+    """Return one directed in/out degree distribution figure per state."""
+    figures = []
+    for state, state_data in data.items():
+        n = state_data.n_nodes
+        source, target = np.asarray(state_data.edges, dtype=np.int64)
+        in_degree = np.bincount(target, minlength=n)
+        out_degree = np.bincount(source, minlength=n)
+        fig, ax = plt.subplots(figsize=(7, 4))
+        max_degree = max(in_degree.max(), out_degree.max())
+        degrees = np.arange(max_degree + 1)
+        ax.bar(degrees - 0.2, np.bincount(in_degree, minlength=len(degrees)) / n * 100,
+               width=0.4, label='Incoming')
+        ax.bar(degrees + 0.2, np.bincount(out_degree, minlength=len(degrees)) / n * 100,
+               width=0.4, label='Outgoing')
+        ax.set(xlabel='Directed degree', ylabel='Intersections (%)',
+               title=f'{state}: directed intersection degree distribution')
+        ax.set_xticks(degrees)
+        ax.legend()
+        figures.append(fig)
+    return figures
+
+
+def graph_laplacian_eda(data):
+    """Summarise undirected connectivity and map the second eigenvector."""
+    from scipy.sparse import coo_matrix, csgraph
+    from scipy.sparse.linalg import eigsh, ArpackNoConvergence
+
+    rows, figures = [], []
+    for state, state_data in data.items():
+        n = state_data.n_nodes
+        source, target = np.asarray(state_data.edges, dtype=np.int64)
+        nonloop = source != target
+        u, v = source[nonloop], target[nonloop]
+        adjacency = coo_matrix((np.ones(2 * len(u)), (np.r_[u, v], np.r_[v, u])),
+                               shape=(n, n)).tocsr()
+        adjacency.data[:] = 1.0
+        count, labels = csgraph.connected_components(adjacency, directed=False)
+        sizes = np.bincount(labels)
+        nodes = np.flatnonzero(labels == sizes.argmax())
+        eigenvalue, vector = np.nan, None
+        if len(nodes) > 2:
+            laplacian = csgraph.laplacian(adjacency[nodes][:, nodes], normed=True)
+            try:
+                values, vectors = eigsh(laplacian, k=2, sigma=-1e-5, which='LM')
+                order = np.argsort(values)
+                eigenvalue, vector = values[order[1]], vectors[:, order[1]]
+            except (ArpackNoConvergence, RuntimeError) as exc:
+                print(f'{state}: eigenvalue calculation failed: {exc}')
+        rows.append({'State': state, 'Intersections': n, 'Components': count,
+                     'Isolated intersections': int((sizes == 1).sum()),
+                     'Largest component': len(nodes),
+                     'Largest component (%)': 100 * len(nodes) / n,
+                     'Second eigenvalue (largest component)': eigenvalue})
+        if vector is not None:
+            coords = pd.read_csv(state_data.node_files[min(state_data.node_files)],
+                                 usecols=['lat', 'lon'])
+            if len(coords) != n:
+                raise ValueError(f'{state}: coordinate rows do not match graph nodes')
+            longitude, latitude = coords['lat'].to_numpy()[nodes], coords['lon'].to_numpy()[nodes]
+            if state in ('DE', 'MD') and not (
+                    np.nanmedian(longitude) < -70 and 35 < np.nanmedian(latitude) < 45):
+                raise ValueError(f'{state}: unexpected coordinate order')
+            fig, ax = plt.subplots(figsize=(6, 6), constrained_layout=True)
+            limit = np.max(np.abs(vector))
+            points = ax.scatter(longitude, latitude, c=vector, s=2, cmap='coolwarm',
+                                vmin=-limit, vmax=limit, rasterized=True)
+            fig.colorbar(points, ax=ax, label='Second eigenvector value', shrink=0.7)
+            ax.set(title=f'{state}: second Laplacian eigenvector',
+                   xlabel='Longitude', ylabel='Latitude')
+            ax.set_aspect('equal', adjustable='box')
+            figures.append(fig)
+    return pd.DataFrame(rows).set_index('State'), figures
+
+
+def accident_signal_smoothness(data, n_shuffles=200, random_state=42):
+    """Compare neighbouring intersection accident signals with shuffled values.
+
+    Each physical road contributes half its training-period mean count to each
+    endpoint. The reference shuffles intersection values, not road counts.
+    """
+    from scipy.sparse import coo_matrix
+
+    rng = np.random.default_rng(random_state)
+    rows = []
+    reference_values = {}
+    for state, d in data.items():
+        n = d.n_nodes
+        roads = np.asarray(d.roads, dtype=np.int64)
+        u, v = roads // n, roads % n
+        road_values = _risk(d).to_numpy(dtype=float)
+        nonloop = u != v
+        u, v, road_values = u[nonloop], v[nonloop], road_values[nonloop]
+        incident_counts = np.bincount(np.r_[u, v], minlength=n)
+        totals = np.bincount(np.r_[u, v], weights=np.r_[road_values / 2, road_values / 2],
+                             minlength=n)
+        active = incident_counts > 0
+        average = np.divide(totals, incident_counts, out=np.zeros(n), where=active)
+        for label, signal in [('Total allocated accidents', totals),
+                              ('Average per incident road', average)]:
+            observed = np.abs(signal[u] - signal[v]).mean()
+            shuffled = np.empty(n_shuffles)
+            for i in range(n_shuffles):
+                permuted = signal.copy()
+                permuted[active] = rng.permutation(signal[active])
+                shuffled[i] = np.abs(permuted[u] - permuted[v]).mean()
+            reference = shuffled.mean()
+            rows.append({'State': state, 'Signal': label,
+                         'Observed mean difference': observed,
+                         'Shuffled mean difference': reference,
+                         'Difference from shuffled (%)': 100 * (observed / reference - 1)
+                         if reference else np.nan,
+                         'Shuffle 2.5th percentile': np.percentile(shuffled, 2.5),
+                         'Shuffle 97.5th percentile': np.percentile(shuffled, 97.5)})
+            reference_values[(state, label)] = shuffled
+    return pd.DataFrame(rows).set_index(['State', 'Signal']), reference_values
+
+
+def plot_accident_weighted_eigenvectors(data):
+    """Compare second eigenvectors for topology and accident-weighted roads.
+
+    Weights are 1 plus the training-period average monthly accident count per
+    physical road. The baseline preserves connections on zero-accident roads.
+    """
+    from scipy.sparse import coo_matrix, csgraph
+    from scipy.sparse.linalg import eigsh
+
+    rows, figures = [], []
+    for state, d in data.items():
+        n = d.n_nodes
+        roads = np.asarray(d.roads, dtype=np.int64)
+        u, v = roads // n, roads % n
+        counts = _risk(d).to_numpy(dtype=float)
+        mask = u != v
+        u, v, counts = u[mask], v[mask], counts[mask]
+        endpoints = (np.r_[u, v], np.r_[v, u])
+        adj = coo_matrix((np.ones(2 * len(u)), endpoints), shape=(n, n)).tocsr()
+        adj.data[:] = 1.0
+        weighted = coo_matrix((np.r_[1 + counts, 1 + counts], endpoints),
+                               shape=(n, n)).tocsr()
+        _, labels = csgraph.connected_components(adj, directed=False)
+        sizes = np.bincount(labels)
+        nodes = np.flatnonzero(labels == sizes.argmax())
+        if len(nodes) <= 2:
+            raise ValueError(f'{state}: largest component too small')
+        results = []
+        for matrix in (adj, weighted):
+            lap = csgraph.laplacian(matrix[nodes][:, nodes], normed=True)
+            vals, vecs = eigsh(lap, k=2, sigma=-1e-5, which='LM')
+            order = np.argsort(vals)
+            results.append((vals[order][1], vecs[:, order[1]]))
+        unweighted_value, unweighted_vec = results[0]
+        weighted_value, weighted_vec = results[1]
+        # Eigenvector signs are arbitrary; align them for visual comparison.
+        if np.dot(unweighted_vec, weighted_vec) < 0:
+            weighted_vec = -weighted_vec
+        correlation = np.corrcoef(unweighted_vec, weighted_vec)[0, 1]
+        coords = pd.read_csv(d.node_files[min(d.node_files)], usecols=['lat', 'lon'])
+        if len(coords) != n:
+            raise ValueError(f'{state}: coordinate rows do not match graph nodes')
+        longitude, latitude = coords['lat'].to_numpy()[nodes], coords['lon'].to_numpy()[nodes]
+        if state in ('DE', 'MD') and not (
+                np.nanmedian(longitude) < -70 and 35 < np.nanmedian(latitude) < 45):
+            raise ValueError(f'{state}: unexpected coordinate order')
+        fig, axes = plt.subplots(1, 2, figsize=(12, 6), constrained_layout=True)
+        limit = max(np.max(np.abs(unweighted_vec)), np.max(np.abs(weighted_vec)))
+        for ax, vec, title in zip(axes, (unweighted_vec, weighted_vec),
+                                  ('Unweighted roads', 'Accident-weighted roads')):
+            points = ax.scatter(longitude, latitude, c=vec, s=2, cmap='coolwarm',
+                                vmin=-limit, vmax=limit, rasterized=True)
+            ax.set(title=f'{state}: {title}', xlabel='Longitude', ylabel='Latitude')
+            ax.set_aspect('equal', adjustable='box')
+        fig.colorbar(points, ax=axes, label='Second eigenvector value', shrink=0.7)
+        figures.append(fig)
+        rows.append({'State': state, 'Unweighted second eigenvalue': unweighted_value,
+                     'Accident-weighted second eigenvalue': weighted_value,
+                     'Eigenvector correlation': correlation,
+                     'Physical roads with accidents (%)': 100 * (counts > 0).mean()})
+    return pd.DataFrame(rows).set_index('State'), figures
