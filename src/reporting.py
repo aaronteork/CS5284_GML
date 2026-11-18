@@ -28,18 +28,24 @@ def load_training_results(results_dir):
     """
     from src.model.train import summarise
 
-    columns = ["Run", "State", "Model", "Task", "Node2Vec", "History", "Seeds", "Epochs",
+    columns = ["Run", "State", "Model", "Task", "Node2Vec", "OSM", "History", "Seeds", "Epochs",
                "AUROC", "AUROC SD", "AP", "AP SD", "MAE", "MAE SD",
-               "Source commit", "Dirty checkout"]
+               "Balanced MAE", "Balanced MAE SD", "Source commit", "Dirty checkout"]
+    # Superseded or diagnostic runs that must not appear beside the matched 100-epoch results:
+    # history_v1 (30/40-epoch snapshot) and smoke tests.
+    excluded_folders = {"history_v1", "smoke"}
     rows = []
     for path in sorted(Path(results_dir).rglob("metrics.json")):
+        if excluded_folders & set(path.relative_to(results_dir).parts):
+            continue
         payload = json.loads(path.read_text(encoding="utf-8"))
         cfg, runs = payload["config"], payload.get("runs", [])
         provenance = payload.get("provenance") or {}
         if (not payload.get("complete") or payload.get("smoke_only") or not runs
                 or "test" not in payload.get("summary", {}) or provenance.get("osm") is not None):
-            continue
-        metrics = summarise(runs)["test"]["all"]
+            continue  # provenance["osm"] marks the separate OSM-experiment runs (own section)
+        summary = summarise(runs)["test"]
+        metrics = summary["all"]
         row = {"Run": cfg["run_name"], "State": cfg["state"], "Model": cfg["model"],
                "Task": cfg["task"], "Node2Vec": bool(cfg["use_node2vec"]),
                "Seeds": len(runs), "Epochs": cfg["epochs"],
@@ -49,8 +55,16 @@ def load_training_results(results_dir):
         row["History"] = (history_mode if history_mode in ("own", "all") else
                            "+".join(cfg.get("history_groups", [])) or
                            ("Matched warm-up control" if cfg.get("history_min_months", 0) else "None"))
-        for source, label in (("AUROC", "AUROC"), ("PR-AUC", "AP"), ("MAE", "MAE")):
-            values = metrics.get(source, {})
+        osm_groups = cfg.get("osm_groups") or []
+        if osm_groups:
+            from src.data.osm import osm_label
+            row["OSM"] = osm_label(osm_groups)
+        else:
+            row["OSM"] = "None"
+        for source, label, protocol in (("AUROC", "AUROC", metrics), ("PR-AUC", "AP", metrics),
+                                        ("MAE", "MAE", metrics),
+                                        ("MAE", "Balanced MAE", summary.get("balanced", {}))):
+            values = protocol.get(source, {})
             row[label] = values.get("mean", float("nan"))
             row[label + " SD"] = values.get("std", float("nan"))
         rows.append(row)
@@ -58,16 +72,20 @@ def load_training_results(results_dir):
 
 
 def format_training_results(results, task):
-    """Compact report table with task-appropriate primary metrics."""
+    """Compact report table with task-appropriate primary metrics.
+
+    Regression shows MAE over all roads and the balanced MAE (equal accident and
+    no-accident roads): near-zero predictions score well on the first only.
+    """
     if task not in ("classification", "regression"):
         raise ValueError("task must be classification or regression")
     table = results[results.Task == task].copy()
     table["Node2Vec"] = table.Node2Vec.map({False: "Without", True: "With"})
-    for metric in (("AUROC", "AP") if task == "classification" else ("MAE", "AUROC")):
+    metrics = ["AUROC", "AP"] if task == "classification" else ["MAE", "Balanced MAE", "AUROC"]
+    for metric in metrics:
         table[metric] = [f"{mean:.4f} ± {std:.4f}" for mean, std in zip(table[metric], table[metric + " SD"])]
-    metrics = ["AUROC", "AP"] if task == "classification" else ["MAE", "AUROC"]
-    history = ["History"] if table.History.ne("None").any() else []
-    return table[["State", "Model", "Node2Vec", *history, "Seeds", *metrics, "Run"]].reset_index(drop=True)
+    features = [c for c in ("OSM", "History") if table[c].ne("None").any()]
+    return table[["State", "Model", "Node2Vec", *features, "Seeds", *metrics, "Run"]].reset_index(drop=True)
 
 
 def plot_training_history(results_dir, run_name, seed=0):
