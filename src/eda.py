@@ -297,7 +297,7 @@ def historical_persistence(data, training_only=False):
     return pd.DataFrame(rows).set_index("State")
 
 
-def history_window_risk(data, windows=(1, 3, 6, 12), training_only=False):
+def history_window_risk(data, windows=(1, 3, 6, 12), training_only=True):
     """Monthly occurrence by prior-window history, over all months by default."""
     rows = []
     for state, d in data.items():
