@@ -16,17 +16,11 @@ def code(text):
 
 
 md("""
-# Accident-history experiments: MLP → GraphSAGE → GatedGCN → Graph Transformer
+# Accident-history experiments on Delaware
 
-先将整个 `train_historydata` 文件夹放在 **MyDrive/train_historydata**，或上传
-`train_historydata_colab.zip` 到 MyDrive。选择 GPU runtime，然后按顺序运行。
+Place the project and data in `MyDrive/train_historydata` or upload `train_historydata_colab.zip` to MyDrive. Select a GPU runtime. Code and data are read locally on Colab, and checkpoints and metrics are written to Drive. The graph retains directed edges. Targets and history use unordered endpoints, and all history windows end before the target month.
 
-这是修改后的独立项目：**不要再 clone 上游仓库**。
-数据在 Colab 本地磁盘读取；checkpoint 和结果每个 epoch 直接写入 Drive。
-图保留有向边，标签和历史按无序端点合并。历史只使用目标月以前的事故。
-
-初版默认：四模型、分类、Node2Vec、完整历史特征、100 epochs、3 seeds。
-每个模型有单独的运行单元；建议先完成 MLP，确认后继续其他模型。
+The default experiment uses full history, Node2Vec, 100 epochs and three seeds. Run one model at a time to check the outputs before proceeding.
 """)
 code("""
 from google.colab import drive
@@ -63,20 +57,22 @@ print('Persistent results/checkpoints:', OUTPUT_DIR)
 subprocess.run(['nvidia-smi', '--query-gpu=name,memory.total', '--format=csv'], check=True)
 """)
 md("""
-## 1. 安装环境
-使用隔离的 Python 3.11 环境和项目固定依赖。第一次安装需要联网。
-不要用 notebook 内核直接 import 训练模块；后续均由 TRAIN_PYTHON 执行，避免依赖混用。
+## 1. Install the training environment
+
+Create an isolated Python 3.11 environment and install the project dependencies. The first installation requires internet access. Training commands use TRAIN_PYTHON throughout.
 """)
-code("""
+code(r"""
 TRAIN_PYTHON = '/content/train_history_env/bin/python'
 
-def run_live(command):
+def run_live(command, on_line=None):
     env = dict(os.environ, PYTHONUNBUFFERED='1', OMP_NUM_THREADS='2', MKL_NUM_THREADS='2')
     with subprocess.Popen([str(x) for x in command], cwd=WORK_DIR, env=env,
                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                           text=True, bufsize=1) as process:
         for line in process.stdout:
             print(line, end='', flush=True)
+            if on_line is not None:
+                on_line(line)
         result = process.wait()
     if result:
         raise subprocess.CalledProcessError(result, command)
@@ -88,27 +84,25 @@ run_live([TRAIN_PYTHON, '-m', 'pip', 'install', '-q', '-r', 'requirements.txt'])
 run_live([TRAIN_PYTHON, '-c', "import torch; print(torch.__version__); assert torch.cuda.is_available(), 'Select a GPU runtime'; print(torch.cuda.get_device_name())"])
 """)
 md("""
-## 2. 测试和完整数据检查
-测试使用微型合成数据；prepare 检查全部原始档案、方向合并、月份和缺失值，并生成缓存。
-预期：49,023 nodes；116,196 directed edges；65,252 road targets；48/60/57 个月；
-无 Node2Vec 时节点 29 维；道路 baseline 27 维，完整历史 45 维。
+## 2. Test and validate the data
+
+Run synthetic unit tests, check the monthly archives and build reusable caches. Expected Delaware dimensions are 49,023 nodes, 116,196 directed edges and 65,252 physical-road targets. The chronological splits contain 48, 60 and 57 months. Without Node2Vec each node has 29 inputs. Each edge has 27 baseline inputs or 45 with full history.
 """)
 code("""
 run_live([TRAIN_PYTHON, '-m', 'unittest', 'discover', '-s', 'tests', '-v'])
 run_live([TRAIN_PYTHON, '-u', '-m', 'src.prepare', '--report', str(OUTPUT_DIR / 'data_validation.json')])
 """)
 md("""
-## 3. 固定实验设置
-先保持以下默认值。若需要两类任务一并运行，设置 TASKS=['classification', 'regression']。
-默认只训练完整历史配置；分类和回归结果会与仓库中已有原始基准分数作上下文比较。
-如需自身历史子组消融，可将 HISTORY_MODES 改为 ['own']。不要为了该比较重跑无历史组。
-修改层宽/学习率/epoch 等后需新的 EXPERIMENT_TAG，旧实验不会被静默覆盖。
+## 3. Configure experiments
+
+The defaults train full-history classifiers. Set TASKS to ['regression'] for count forecasts or include both tasks to run them together. Select 'own' for own-road history or 'none' for a control. Use a new experiment tag when changing settings. To extend an already completed run with matching code, inputs and seeds, retain its tag, increase EPOCHS and set EXTEND_EXISTING to True. The previous results and weights are backed up before extension.
 """)
-code("""
+code(r"""
 TASKS = ['classification']
 HISTORY_MODES = ['all']
 USE_NODE2VEC = True
 SEEDS = [0, 1, 2]
+EXTEND_EXISTING = False
 EPOCHS = 100
 HIDDEN_CHANNELS = 256
 EXPERIMENT_TAG = 'v1'
@@ -116,7 +110,7 @@ EXPERIMENT_TAG = 'v1'
 def train_command(model, task, history, smoke=False):
     embedding = 'n2v' if USE_NODE2VEC else 'no_n2v'
     name = f'{EXPERIMENT_TAG}_DE_{model}_{task}_{embedding}_hist_{history}'
-    command = [TRAIN_PYTHON, '-u', '-m', 'src.model.train', '--model', model,
+    command = [TRAIN_PYTHON, '-u', '-m', ('scripts.extend_accident_run' if EXTEND_EXISTING and not smoke else 'src.model.train'), '--model', model,
                '--task', task, '--history-mode', history, '--epochs', str(EPOCHS),
                '--hidden-channels', str(HIDDEN_CHANNELS), '--seeds', *map(str, SEEDS),
                '--device', 'cuda', '--output-dir', str(OUTPUT_DIR), '--run-name', name, '--resume']
@@ -126,19 +120,97 @@ def train_command(model, task, history, smoke=False):
         command += ['--smoke-test']
     return command
 
+print('Full seed runs:', 4 * len(TASKS) * len(HISTORY_MODES) * len(SEEDS))
+""")
+md(r"""
+### Monitor convergence
+
+Each validation refresh shows epoch losses and measured validation scores. Stars mark the best validation checkpoint for each seed. Curves are also saved to the run directory on Drive.
+""")
+code(r"""
+import re
+from io import BytesIO
+from tempfile import NamedTemporaryFile
+
+import matplotlib.pyplot as plt
+import pandas as pd
+import ipywidgets as widgets
+from IPython.display import Image, display
+
+def save_convergence_plot(command, task, pending=None):
+    name = command[command.index('--run-name') + 1]
+    folder = OUTPUT_DIR / 'results' / name
+    metric = 'valid_mae' if task == 'regression' else 'valid_auroc'
+    fig, (loss_ax, val_ax) = plt.subplots(1, 2, figsize=(10, 3.5))
+    try:
+        for index, seed in enumerate(SEEDS):
+            path = folder / f'seed{seed}_history.csv'
+            history = pd.read_csv(path) if path.exists() else pd.DataFrame()
+            # The trainer prints the validation line just before appending its CSV row.
+            if pending and seed == pending[0]:
+                _, epoch, loss, score = pending
+                if history.empty or epoch not in history['epoch'].values:
+                    history = pd.concat([history, pd.DataFrame([{
+                        'epoch': epoch, 'train_loss': loss, metric: score}])])
+            if history.empty:
+                continue
+            color = f'C{index % 10}'
+            loss_ax.plot(history['epoch'], history['train_loss'], color=color, label=f'seed {seed}')
+            valid = history.dropna(subset=[metric]).set_index('epoch')[metric]
+            if len(valid):
+                best = valid.idxmin() if task == 'regression' else valid.idxmax()
+                val_ax.plot(valid.index, valid, '.-', color=color, label=f'seed {seed}')
+                val_ax.plot(best, valid.loc[best], '*', ms=13, color=color)
+        if not loss_ax.lines:
+            return None
+        loss_ax.set_title('Training loss')
+        val_ax.set_title('Validation ' + ('MAE (lower is better)' if task == 'regression'
+                                         else 'AUROC (higher is better)'))
+        for ax in (loss_ax, val_ax):
+            ax.set_xlabel('Epoch')
+            ax.grid(alpha=0.25)
+            if ax.lines:
+                ax.legend()
+        fig.suptitle(name)
+        fig.tight_layout()
+        with BytesIO() as buffer:
+            fig.savefig(buffer, format='png', dpi=105)
+            png = buffer.getvalue()
+        target = folder / 'convergence.png'
+        with NamedTemporaryFile(dir=folder, suffix='.png', delete=False) as tmp:
+            tmp.write(png)
+        Path(tmp.name).replace(target)
+        return png
+    finally:
+        plt.close(fig)
+
+validation_line = re.compile(
+    r'\[seed (\d+)\] epoch\s+(\d+) \| loss ([\d.eE+-]+) \| '
+    r'valid (?:MAE|AUROC) \([^)]+\) ([\d.eE+-]+)'
+)
+
 def run_model(model):
     for task in TASKS:
         for history in HISTORY_MODES:
-            print(f'\\nRunning {model} / {task} / history={history}', flush=True)
-            run_live(train_command(model, task, history))
+            command = train_command(model, task, history)
+            print(f'Running {model} / {task} / history={history} / Node2Vec={USE_NODE2VEC}', flush=True)
+            chart = widgets.Image(format='png')
+            display(chart)
 
-print('Full seed runs:', 4 * len(TASKS) * len(HISTORY_MODES) * len(SEEDS))
+            def refresh(line):
+                match = validation_line.search(line)
+                if match:
+                    seed, epoch, loss, score = match.groups()
+                    chart.value = save_convergence_plot(command, task, (int(seed), int(epoch),
+                                                                   float(loss), float(score))) or b''
+
+            run_live(command, on_line=refresh)
+            chart.value = save_convergence_plot(command, task) or b''
 """)
 md("""
-## 4. 实测 GPU 时间和显存
-此单元仅在训练集做短训练，并用少量验证月份估时；不评估测试集。
-报告给出每个模型 100 epochs/单 seed 的估算和显存峰值。它比静态时间表更可靠。
-若某模型 OOM，选择更大显存 GPU；或把所有对照都统一改为 128 维并更换实验标签。
+## 4. Profile GPU time and memory
+
+Measure training and validation on a small subset of months. The report estimates the cost of 100 epochs per seed and records peak GPU memory. If memory is insufficient, select a larger GPU or use a common smaller width and a new tag for all configurations.
 """)
 code("""
 command = [TRAIN_PYTHON, '-u', '-m', 'src.profile', '--device', 'cuda',
@@ -148,9 +220,9 @@ if USE_NODE2VEC:
 run_live(command)
 """)
 md("""
-## 5. 四模型 smoke test
-每个模型只用两个训练月份、两个验证月份，跑两个 epochs；不评估测试集。
-日志和 checkpoint 存在带 `_smoke` 后缀的独立目录，不进入正式对比表。
+## 5. Smoke-test the four models
+
+Each model trains for two epochs on two training months and validates on two months. Results use a separate smoke-test directory and do not enter the test comparison.
 """)
 code("""
 for model in ['mlp', 'graphsage', 'gatedgcn', 'graph_transformer']:
@@ -158,18 +230,107 @@ for model in ['mlp', 'graphsage', 'gatedgcn', 'graph_transformer']:
 """)
 for number, model in enumerate(['mlp', 'graphsage', 'gatedgcn', 'graph_transformer'], 6):
     md(f"""
-## {number}. 正式训练 {model}
-本单元依次运行指定任务、历史配置和三个种子。每个 epoch 保存恢复状态。
-断线后重新连接，运行环境准备和配置单元，再重跑本单元：自动续训或跳过已完成 seed。
+## {number}. Train {model}
+
+Run the selected tasks, history settings and seeds. After a disconnect, repeat setup and configuration with the original settings, then run this cell to resume from the last complete epoch or skip completed seeds.
 """)
     code(f"run_model('{model}')")
 md("""
-## 10. 汇总正式结果
-只有完成的正式实验进入 comparison.csv。表格会使用仓库里兼容的原始 MLP/GraphSAGE
-结果作为参考；原始运行用了 100 epochs，历史运行用了 30/40 epochs，因此差值仅作上下文比较。
-AUROC 差值为正表示历史结果更高，MAE 差值为负表示历史结果更低；缺少原始结果的模型不显示 delta。
-要继续回归：在第 3 步设 TASKS=['regression']，重新运行第 3 步，再依次运行四模型单元。
-不要依据测试结果不断调参；选择和调参使用验证集。
+### Optional GraphSAGE classification ablation
+
+Compare the same three seeds and training settings with no history, own-road history and full history. To train, enable RUN_ABLATION. To view and download an existing comparison after reconnecting, restore the original experiment tag, epoch budget and embedding setting, then enable DOWNLOAD_ABLATION. The final report compares full history with archived no-history controls; this optional experiment has its own run names.
+""")
+code(r"""
+RUN_ABLATION = False
+DOWNLOAD_ABLATION = False
+results_root = OUTPUT_DIR / "results"
+embedding = "n2v" if USE_NODE2VEC else "no_n2v"
+prefix = f"{EXPERIMENT_TAG}_ablation_DE_graphsage_classification_{embedding}_e{EPOCHS}"
+ablation_modes = ("none", "own", "all")
+ablation_runs = {mode: f"{prefix}_hist_{mode}" for mode in ablation_modes}
+
+if RUN_ABLATION:
+    for mode, name in ablation_runs.items():
+        command = train_command("graphsage", "classification", mode)
+        command[command.index("--run-name") + 1] = name
+        run_live(command)
+        save_convergence_plot(command, "classification")
+""")
+code(r"""
+if RUN_ABLATION or DOWNLOAD_ABLATION:
+    ablation_rows = []
+    reference_identity = None
+    for mode, name in ablation_runs.items():
+        result_path = results_root / name / "metrics.json"
+        if not result_path.is_file():
+            raise FileNotFoundError(f"Missing summary for {mode}: {result_path}")
+        saved = json.loads(result_path.read_text())
+        if not saved["complete"] or saved["smoke_only"] or sorted(r["seed"] for r in saved["runs"]) != sorted(SEEDS):
+            raise ValueError(f"Incomplete ablation run: {name}")
+        identity = dict(saved["identity"])
+        identity["settings"] = {k: v for k, v in identity["settings"].items()
+                                if k not in ("history_mode", "run_name")}
+        if reference_identity is None:
+            reference_identity = identity
+        elif identity != reference_identity:
+            raise ValueError(f"Source, data or training settings differ: {name}")
+        for run in saved["runs"]:
+            test = run["test"]["all"]
+            ablation_rows.append({"History": mode, "Seed": run["seed"], "AUROC": test["AUROC"],
+                                  "AP": test["PR-AUC"], "Precision@top1%": test["precision@top1%"]})
+
+    ablation_scores = pd.DataFrame(ablation_rows).set_index(["History", "Seed"])
+    def mean_sd(values):
+        return f"{values.mean():.4f} ± {values.std(ddof=0):.4f}"
+
+    ablation_summary = ablation_scores.groupby(level="History").agg(mean_sd).loc[list(ablation_modes)]
+    display(ablation_summary)
+    contrasts = {}
+    for before, after in [("none", "own"), ("own", "all"), ("none", "all")]:
+        paired = ablation_scores.loc[after] - ablation_scores.loc[before]
+        contrasts[f"{after} − {before}"] = paired.apply(mean_sd)
+    ablation_differences = pd.DataFrame(contrasts).T
+    display(ablation_differences)
+""")
+code(r"""
+if DOWNLOAD_ABLATION:
+    from zipfile import ZipFile, ZIP_DEFLATED
+    from google.colab import files
+
+    archive_path = results_root.parent / f"{prefix}_report.zip"
+    with ZipFile(archive_path, "w", compression=ZIP_DEFLATED) as archive:
+        for name, table in (("seed_scores", ablation_scores), ("summary", ablation_summary),
+                            ("paired_differences", ablation_differences)):
+            archive.writestr(f"{name}.csv", table.to_csv())
+        for folder_name in ablation_runs.values():
+            folder = results_root / folder_name
+            for path in [folder / "metrics.json", folder / "run_metadata.json",
+                         folder / "convergence.png", *sorted(folder.glob("seed*_history.csv"))]:
+                if path.is_file():
+                    archive.write(path, path.relative_to(results_root))
+    print("Archive on Drive:", archive_path)
+    files.download(str(archive_path))
+""")
+md(r"""
+### Review saved curves
+
+Read both tasks from the selected experiment tag and history settings. This cell can be used after reconnecting without running training again.
+""")
+code(r"""
+for model in ['mlp', 'graphsage', 'gatedgcn', 'graph_transformer']:
+    for task in ['regression', 'classification']:
+        for history in HISTORY_MODES:
+            command = train_command(model, task, history)
+            png = save_convergence_plot(command, task)
+            if png:
+                display(Image(data=png))
+            else:
+                print('No training history for', command[command.index('--run-name') + 1])
+""")
+md("""
+## 10. Compare completed experiments
+
+The summary excludes smoke tests and incomplete runs. It compares compatible runs and includes archived reference scores where available. Positive AUROC changes and negative MAE changes favour the history setting. Separate experiments with different training budgets or implementations provide contextual comparisons. Select models on validation data. To run regression, update TASKS, rerun the configuration and run each model cell.
 """)
 code("""
 run_live([TRAIN_PYTHON, '-m', 'src.compare', '--results-dir', str(OUTPUT_DIR / 'results')])
@@ -179,10 +340,9 @@ if table.exists():
     display(pd.read_csv(table))
 """)
 md("""
-## 11. 可选：固定简单参照
-回归实验需比较全零、上一月计数、过去 3/12 月均值，避免被稀疏标签的低 MAE 误导。
-默认只检查验证集。全部实验方案确定、需要最终报告时，将 SPLIT 改为 'test' 再执行一次。
-这些参照直接预测物理道路计数，不经过训练采样。
+## 11. Optional simple regression baselines
+
+Compare zero counts, the previous month and trailing three- and twelve-month means. Use validation for model selection. Set SPLIT to 'test' for the final evaluation once the choices are fixed.
 """)
 code("""
 SPLIT = 'valid'
@@ -190,13 +350,9 @@ run_live([TRAIN_PYTHON, '-u', '-m', 'src.simple_baselines', '--split', SPLIT,
           '--output', str(OUTPUT_DIR / f'simple_baselines_{SPLIT}.json')])
 """)
 md("""
-## 结果位置与解释
-Drive 的 `train_historydata/experiments/weights/<run>/`：最佳 checkpoint、每 epoch 的 last checkpoint。
-`experiments/results/<run>/`：每 seed 的曲线、指标、测试预测及配置/数据/源码指纹。
+## Output files and interpretation
 
-保留了原 benchmark 的目标月观测天气。因此本实验是在同等原始输入条件下比较新增历史，
-不能宣称所有输入在月初均已可用。历史严格过去，但后续测试月份可使用此前测试月份已发生的事故。
-原历史 EDA 查看过 2018 年；报告需披露这与测试期的重叠。旧仓库分数是上下文参考，不是配对消融。
+Drive stores best and last checkpoints under `experiments/weights/<run>/` and per-seed metrics, curves and test predictions under `experiments/results/<run>/`. The original benchmark uses observed target-month weather. History uses earlier months only, including prior test months under a rolling forecast. The original exploratory analysis included 2018; the final report uses training-only history associations.
 """)
 
 notebook = {"cells": cells, "metadata": {"kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},

@@ -11,6 +11,11 @@ from src.model import train
 
 
 class TrainingHistoryTests(unittest.TestCase):
+    def setUp(self):
+        fingerprint = patch.object(train, "dataset_fingerprint", return_value="synthetic-history-fixture")
+        fingerprint.start()
+        self.addCleanup(fingerprint.stop)
+
     def test_history_records_all_epochs_and_test_uses_best_checkpoint(self):
         for task in ("classification", "regression"):
             with self.subTest(task=task), tempfile.TemporaryDirectory() as temporary:
