@@ -1,0 +1,9 @@
+run,model,task,history,node2vec,seeds,hidden_channels,metric,mean,std,AP,top1_precision,delta_vs_matched_baseline
+v1_DE_gatedgcn_classification_n2v_hist_all,gatedgcn,classification,all,True,"[0, 1, 2]",256,AUROC,0.8847513353047661,0.0001619601370562572,0.32141943810087437,0.5512837734970402,
+v1_DE_gatedgcn_regression_n2v_hist_all,gatedgcn,regression,all,True,"[0, 1, 2]",256,MAE,0.18911626190587716,0.011242490661839083,0.22936345126906743,0.3946069870950986,
+v1_DE_graph_transformer_classification_n2v_hist_all,graph_transformer,classification,all,True,"[0, 1, 2]",256,AUROC,0.883735674688935,0.00034508278101827,0.31826810989576665,0.5441014481072513,
+v1_DE_graph_transformer_regression_n2v_hist_all,graph_transformer,regression,all,True,"[0, 1, 2]",256,MAE,0.15298353309794052,0.0019788726122216055,0.2045712713519644,0.3697375137691088,
+v1_DE_graphsage_classification_n2v_hist_all,graphsage,classification,all,True,"[0, 1, 2]",256,AUROC,0.8860298598835215,0.00017804176816842198,0.32502701911088544,0.556836194621316,
+v1_DE_graphsage_regression_n2v_hist_all,graphsage,regression,all,True,"[0, 1, 2]",256,MAE,0.2106843636925805,0.013290135016213693,0.2550304166725465,0.4001773192552591,
+v1_DE_mlp_classification_n2v_hist_all,mlp,classification,all,True,"[0, 1, 2]",256,AUROC,0.8857604728555959,0.0005361485638517983,0.31717308310240117,0.5412625489195168,
+v1_DE_mlp_regression_n2v_hist_all,mlp,regression,all,True,"[0, 1, 2]",256,MAE,0.2199275296451335,0.005161143175319311,0.26740011979016154,0.43690389833696025,
