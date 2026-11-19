@@ -357,3 +357,28 @@ def history_checkpoints(full_history_root, task):
             checkpoints.append({"Model": label, "Seed": seed, "Epoch": run["best_epoch"],
                                 f"Validation {metric}": score, f"Test {metric}": run["test"]["all"][metric]})
     return pd.DataFrame(checkpoints)
+
+
+def plot_history_training_summary(full_history_root, task):
+    metric = {"classification": "auroc", "regression": "mae"}[task]
+    fig, (loss_ax, valid_ax) = plt.subplots(1, 2, figsize=(10, 3.5))
+    models = [("mlp", "MLP"), ("graphsage", "GraphSAGE"),
+              ("gatedgcn", "GatedGCN"), ("graph_transformer", "Graph Transformer")]
+    for (model, label), color, style in zip(models, ["#0072B2", "#D55E00", "#009E73", "#734B86"],
+                                          ["-", "--", "-.", ":"]):
+        folder = full_history_root / f"v1_DE_{model}_{task}_n2v_hist_all"
+        histories = [pd.read_csv(folder / f"seed{seed}_history.csv") for seed in range(3)]
+        columns = ["train_loss", f"valid_{metric}"]
+        means = pd.concat(histories).groupby("epoch")[columns].mean()
+        loss_ax.plot(means.index, means.train_loss, style, color=color, label=label)
+        scores = means[f"valid_{metric}"].dropna()
+        valid_ax.plot(scores.index, scores, style, color=color, marker=".", markersize=4)
+    loss_ax.set_title("Training loss")
+    valid_ax.set_title("Validation AUROC (higher is better)" if task == "classification"
+                       else "Validation MAE (lower is better)")
+    for ax in (loss_ax, valid_ax):
+        ax.set_xlabel("Epoch")
+        ax.grid(alpha=0.2)
+    fig.legend(*loss_ax.get_legend_handles_labels(), loc="lower center", ncol=4, frameon=False)
+    fig.tight_layout(rect=(0, 0.1, 1, 1))
+    return fig
