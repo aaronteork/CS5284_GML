@@ -1,4 +1,4 @@
-"""Tables and figures for the report's OpenStreetMap section (§5.1).
+"""Tables and figures for the report's OpenStreetMap sections (4.2.3 and 5.3).
 
 Why: the report must render from small committed files, without the OSM data, the
 prediction tensors or a GPU. Everything here reads `metrics.json`,
@@ -46,17 +46,6 @@ PERMUTATION_LABELS = {
     "traffic (AADT)": "Traffic (AADT)",
 }
 
-# Metric keys in metrics.json and the names the report uses for them.
-REPORT_METRICS = {
-    "AUROC": "AUROC",
-    "PR-AUC": "AP",
-    "precision@top1%": "Precision@top 1%",
-    "recall@top1%": "Recall@top 1%",
-}
-
-BASELINE_COLOR, OSM_COLOR = "#9a9a94", "#2a78d6"
-NODE2VEC_COLORS = {"Without": "#eb6834", "With": "#6b4fa3"}
-
 
 def _read_json(path):
     return json.loads(Path(path).read_text(encoding="utf-8"))
@@ -65,8 +54,9 @@ def _read_json(path):
 def load_osm_results(project_dir):
     """Read the OSM comparison runs and check that they form a fair 2x2.
 
-    Why: a missing seed, a run from another state or task, or an OSM run with fewer
-    groups would silently change the comparison. Each check raises with the run name.
+    Why: these runs back the 2x2 table in Section 5.3.2 and the permutation figure in
+    Section 5.3. A missing seed, a run from another state or task, or an OSM run with fewer
+    groups would silently change them. Each check raises with the run name.
     Takes: the repository folder. Returns a dict with `runs` {(node2vec, osm): metrics},
     and `permutation` {node2vec: permutation results}.
     """
@@ -96,39 +86,6 @@ def load_osm_results(project_dir):
     return {"runs": runs, "permutation": permutation}
 
 
-def _seed_values(metrics, metric):
-    """Test-set value of one metric for each seed, in seed order (all roads, not the balanced subset)."""
-    ordered = sorted(metrics["runs"], key=lambda run: run["seed"])
-    return np.array([run["test"]["all"][metric] for run in ordered])
-
-
-def _mean_sd(values):
-    # Population SD (ddof=0) across the three seeds, as everywhere else in the report.
-    return f"{values.mean():.4f} ± {values.std():.4f}"
-
-
-def osm_comparison_table(results):
-    """Table: baseline vs with-OSM test scores for both Node2Vec settings.
-
-    Why: the main result of §5.1. Change is the difference of seed means; 'Seeds
-    improved' pairs runs by seed number, which share the training seed but not
-    necessarily the same pipeline commit (the no-Node2Vec control is the team's run).
-    Takes: `load_osm_results` output. Returns a DataFrame indexed by (Node2Vec, metric).
-    """
-    rows = []
-    for node2vec in ("Without", "With"):
-        for key, label in REPORT_METRICS.items():
-            baseline = _seed_values(results["runs"][(node2vec, "Baseline")], key)
-            with_osm = _seed_values(results["runs"][(node2vec, "With OSM")], key)
-            rows.append({
-                "Node2Vec": node2vec, "Metric": label,
-                "Baseline": _mean_sd(baseline), "With OSM": _mean_sd(with_osm),
-                "Change": with_osm.mean() - baseline.mean(),
-                "Seeds improved": f"{int((with_osm > baseline).sum())}/3",
-            })
-    return pd.DataFrame(rows).set_index(["Node2Vec", "Metric"])
-
-
 def permutation_table(results):
     """Table: test AUROC drop when each feature set is shuffled, per Node2Vec setting.
 
@@ -149,45 +106,6 @@ def permutation_table(results):
     table = pd.DataFrame(columns)
     table.index.name = "Shuffled feature set"
     return table
-
-
-def plot_osm_comparison(results):
-    """Figure: (left) the 2x2 test AUROC; (right) AUROC drop per shuffled OSM group.
-
-    Why: one picture of the main result and of what the model leans on.
-    Takes: `load_osm_results` output. Returns the matplotlib figure.
-    """
-    fig, (ax_scores, ax_drops) = plt.subplots(1, 2, figsize=(11, 3.8), layout="constrained",
-                                              gridspec_kw={"width_ratios": [1, 1.35]})
-
-    # Left: points with seed SD (not bars: the axis is zoomed, and bars would exaggerate the gaps).
-    positions = np.arange(2)
-    for offset, (osm, color) in zip((-0.1, 0.1), (("Baseline", BASELINE_COLOR), ("With OSM", OSM_COLOR))):
-        values = [_seed_values(results["runs"][(node2vec, osm)], "AUROC") for node2vec in ("Without", "With")]
-        means, sds = np.array([v.mean() for v in values]), np.array([v.std() for v in values])
-        ax_scores.errorbar(positions + offset, means, yerr=sds, fmt="o", markersize=7, capsize=4,
-                           color=color, label=osm)
-        for x, mean in zip(positions + offset, means):
-            ax_scores.annotate(f"{mean:.4f}", (x, mean), xytext=(9, 0), textcoords="offset points",
-                               va="center", fontsize=8.5, color=color)
-    ax_scores.set(xticks=positions, xticklabels=["Without Node2Vec", "With Node2Vec"], xlim=(-0.5, 1.6),
-                  ylabel="Test AUROC (mean ± SD, 3 seeds)")
-    ax_scores.legend(loc="lower right")
-    ax_scores.grid(axis="y")
-
-    # Right: horizontal bars of the permutation drop for each OSM group.
-    groups = ["Nearby places", "Road character", "Intersection controls", "Road shape", "Cycle / pedestrian / lighting"]
-    drops = permutation_table(results)
-    rows = np.arange(len(groups))
-    for offset, node2vec in zip((-0.2, 0.2), ("Without", "With")):
-        ax_drops.barh(rows + offset, drops.loc[groups, f"{node2vec} Node2Vec"], 0.38,
-                      color=NODE2VEC_COLORS[node2vec], label=f"{node2vec} Node2Vec")
-    ax_drops.set(yticks=rows, yticklabels=groups, xlabel="Test AUROC drop when the group is shuffled")
-    ax_drops.invert_yaxis()
-    ax_drops.axvline(0, color="grey", linewidth=0.7)
-    ax_drops.grid(axis="x")
-    ax_drops.legend(loc="lower right")
-    return fig
 
 
 def plot_osm_pipeline():
