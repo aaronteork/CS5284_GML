@@ -193,8 +193,9 @@ def plot_osm_comparison(results):
 def plot_osm_pipeline():
     """Figure: from the OSM snapshot and the benchmark graph to the model inputs.
 
-    Why: the reader sees the whole pipeline, its headline numbers, and the two places
-    where the OSM features enter GraphSAGE before reading the details. Needs no data;
+    Why: the reader sees the whole pipeline, its headline numbers, and where the OSM
+    features enter the models (every model's road predictor, and the graph models'
+    message passing) before reading the details. Needs no data;
     the numbers are the Delaware values reported in §5.1.
     Returns the matplotlib figure.
     """
@@ -224,9 +225,9 @@ def plot_osm_pipeline():
     # The linear preparation steps.
     steps = [
         ("Match roads to OSM", "89.6% of directed roads matched (85.1% exact, 4.0% nearest)"),
-        ("Clean recorded attributes", "free text to numbers; all speed limits in mph; missing = unknown, not zero"),
-        ("Test gap-filling", "speed limit passes; estimates not used in the reported model"),
-        ("Build and encode features", "58 raw features in 5 groups  →  70 encoded columns  x_OSM"),
+        ("Clean recorded attributes", "free text converted to numbers; missing values = mean + indicator"),
+        ("Test gap-filling", "speed limit passes, lanes and surface fail; estimates not used in the model"),
+        ("Build and encode features", "58 features in 5 groups  →  70 encoded columns  x_OSM"),
     ]
     y = 8.1
     for i, (title, detail) in enumerate(steps):
@@ -235,11 +236,11 @@ def plot_osm_pipeline():
         y -= 1.25
 
     # The combined edge vector, then the two places it is used.
-    box(5, y, 7.2, "Road input vector", "x_uv = [ x_base ‖ x_OSM ‖ x_traffic ]", "model")
+    box(5, y, 7.2, "Road input vector", "e_uv,t = [ e_base ‖ x_OSM ]", "model")
     ax.annotate("", xy=(2.8, y - 1.33), xytext=(4.2, y - 0.42), arrowprops=arrow)
     ax.annotate("", xy=(7.2, y - 1.33), xytext=(5.8, y - 0.42), arrowprops=arrow)
-    box(2.8, y - 1.75, 4.0, "1. GraphSAGE messages", "m_u→v = W h_u + W_e x_uv", "model")
-    box(7.2, y - 1.75, 4.0, "2. Road predictor", "ŷ_uv = σ( MLP[ h_u ‖ h_v ‖ x_uv ] )", "model")
+    box(2.8, y - 1.75, 4.0, "1. Message passing (graph models)", "GraphSAGE, GatedGCN, Graph Transformer", "model")
+    box(7.2, y - 1.75, 4.0, "2. Road predictor (all models)", "s_uv,t = f( [ h_u ‖ h_v ‖ e_uv,t ] )", "model")
     ax.annotate("", xy=(5.2, y - 1.75), xytext=(4.8, y - 1.75), arrowprops=arrow)
     ax.text(5, y - 1.5, "h_u, h_v", ha="center", fontsize=8.6, color="#4a4945")
 
