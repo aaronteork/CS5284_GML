@@ -297,12 +297,14 @@ def historical_persistence(data, training_only=False):
     return pd.DataFrame(rows).set_index("State")
 
 
-def history_window_risk(data, windows=(1, 3, 6, 12)):
-    """Training-period next-month occurrence, by any crash in prior windows."""
+def history_window_risk(data, windows=(1, 3, 6, 12), training_only=True):
+    """Monthly occurrence by prior-window history, over all months by default."""
     rows = []
     for state, d in data.items():
-        first, last = SPLITS[state]["train"]
-        months = d.months[(d.months.year >= first) & (d.months.year <= last)]
+        months = d.months
+        if training_only:
+            first, last = SPLITS[state]["train"]
+            months = months[(months.year >= first) & (months.year <= last)]
         positive = d.counts[d.counts > 0]
         sets = {date: set(group.index.get_level_values("road"))
                 for date, group in positive.groupby(level="date")}
@@ -330,8 +332,8 @@ def history_window_risk(data, windows=(1, 3, 6, 12)):
     return pd.DataFrame(rows)
 
 
-def traffic_accident_association(data):
-    """Training-year AADT and matching-year accident counts on observed roads.
+def traffic_accident_association(data, training_only=True):
+    """AADT and matching-year accident counts on observed roads.
 
     Opposite-direction AADT observations are averaged per unordered pair.
     No AADT imputation or future-year carry-back is used.
@@ -341,7 +343,7 @@ def traffic_accident_association(data):
         first, last = SPLITS[state]["train"]
         roads = pd.Index(d.roads)
         for year, path in sorted(d.traffic_files.items()):
-            if not first <= year <= last:
+            if training_only and not first <= year <= last:
                 continue
             months = d.months[d.months.year == year]
             if not len(months):
@@ -360,7 +362,7 @@ def traffic_accident_association(data):
 def plot_traffic_risk(observations):
     states = list(observations.State.unique())
     if not states:
-        fig, ax = plt.subplots(); ax.text(.5, .5, "No training-year AADT observations", ha="center"); ax.axis("off")
+        fig, ax = plt.subplots(); ax.text(.5, .5, "No AADT observations", ha="center"); ax.axis("off")
         return fig, pd.DataFrame()
     fig, axes = plt.subplots(1, len(states), figsize=(5.4 * len(states), 3.4), squeeze=False, layout="constrained")
     stats = []
@@ -487,11 +489,11 @@ def plot_neighbour_risk(data, sample=5000):
     return fig, pd.Series(correlations, name="Training-period correlation")
 
 
-def plot_length_risk(data):
+def plot_length_risk(data, training_only=True):
     fig, axes = _axes(data)
     for ax, (state, d) in zip(axes, data.items()):
         lengths = _feature_series(d.edge_features["length"], d.n_nodes, physical=True)
-        summary = pd.DataFrame({"length": lengths.reindex(d.roads), "accidents": _risk(d)}).dropna()
+        summary = pd.DataFrame({"length": lengths.reindex(d.roads), "accidents": _risk(d, training_only=training_only)}).dropna()
         summary = summary[summary.length > 0]
         summary["group"] = pd.qcut(summary.length, 5, duplicates="drop")
         groups = summary.groupby("group", observed=True)[["length", "accidents"]].mean()
@@ -500,7 +502,7 @@ def plot_length_risk(data):
     return fig
 
 
-def plot_road_type_risk(data, min_roads=100):
+def plot_road_type_risk(data, min_roads=100, training_only=True):
     fig, axes = _axes(data, height=4.5)
     for ax, (state, d) in zip(axes, data.items()):
         categories = {}
@@ -511,7 +513,7 @@ def plot_road_type_risk(data, min_roads=100):
             categories[name] = pd.Series(1, index=series[series > 0].index)
         flags = pd.DataFrame(categories).reindex(d.roads).fillna(0)
         types = flags.loc[flags.sum(axis=1) == 1].idxmax(axis=1)
-        summary = pd.DataFrame({"type": types, "accidents": _risk(d).reindex(types.index)})
+        summary = pd.DataFrame({"type": types, "accidents": _risk(d, training_only=training_only).reindex(types.index)})
         groups = summary.groupby("type").accidents.agg(["size", "mean"])
         groups = groups[groups["size"] >= min_roads].sort_values("mean")
         ax.barh(groups.index.str.replace("_", " "), groups["mean"])

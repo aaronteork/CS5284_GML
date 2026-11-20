@@ -223,7 +223,7 @@ def show_risk_map(project_dir, max_roads=6000, *, mode="all", data_dir=None,
 
     A local server gives the map a normal HTTP origin for OpenStreetMap tiles;
     it runs until the notebook kernel stops. Colab uses its output proxy.
-    Plotly and basemap tiles need internet. ``display_mode='none'`` only saves.
+    The map library and basemap tiles need internet. ``display_mode='none'`` only saves.
     Multiple Colab maps keep independent servers, so a results map does not
     disconnect the earlier EDA map. Prediction files must be trusted local exports.
     """
@@ -288,7 +288,6 @@ def show_risk_map(project_dir, max_roads=6000, *, mode="all", data_dir=None,
 
 
 _APP = r'''<!doctype html><html><head><meta charset="utf-8">
-<script src="https://cdn.plot.ly/plotly-3.1.0.min.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
@@ -301,15 +300,15 @@ select{width:100%;padding:10px 8px;border:1px solid #d8e0ec;border-radius:7px;ba
 .nav{display:flex;gap:8px;margin-top:9px}.nav button{flex:1}.note{font-size:11px;color:#64748b;line-height:1.7;margin-top:24px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px}.stat{padding:15px 18px}.stat span{display:block;color:#64748b;font-size:11px}.stat strong{display:block;font-size:24px;margin-top:5px;font-weight:650}.maphead{display:flex;justify-content:space-between;padding:16px 18px;border-bottom:1px solid #edf1f6}.maphead b{font-size:15px}.maphead span{font-size:11px;color:#64748b}#map{height:520px}.foot{padding:10px 18px;font-size:11px;color:#64748b;line-height:1.6}#status{color:#b45309;padding-top:8px} @media(max-width:750px){main{grid-template-columns:1fr}aside{height:auto}.stats{gap:5px}.stat strong{font-size:18px}}
 </style></head><body>
 <header><div><h1 id="appTitle">Road Safety Explorer</h1><p id="appSubtitle">Historical accidents and baseline model predictions</p></div><div class="badge">CS5284 · GROUP 01</div></header>
-<main><aside><label>State</label><select id="state"></select><label>Basemap</label><select id="basemap"><option value="open-street-map">OpenStreetMap</option><option value="network">Road network · no basemap</option></select><label>Map layer</label><select id="view"><option value="observed">Recorded accidents</option><option value="predicted">Model prediction</option><option value="error">Prediction error</option></select><label>Model / seed</label><select id="model"></select><label>Aggregation</label><select id="aggregation"><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="yearly">Yearly</option></select><label>Period</label><select id="month"></select><div class="nav"><button id="prev">← Previous</button><button id="next">Next →</button></div></aside>
+<main><aside><label>State</label><select id="state"></select><label>Map layer</label><select id="view"><option value="observed">Recorded accidents</option><option value="predicted">Model prediction</option><option value="error">Prediction error</option></select><label>Model / seed</label><select id="model"></select><label>Aggregation</label><select id="aggregation"><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="yearly">Yearly</option></select><label>Period</label><select id="month"></select><div class="nav"><button id="prev">← Previous</button><button id="next">Next →</button></div></aside>
 <section><div class="stats"><div class="card stat"><span>RECORDED ACCIDENTS</span><strong id="total">—</strong></div><div class="card stat"><span>ROADS WITH ACCIDENTS</span><strong id="positive">—</strong></div><div class="card stat"><span id="thirdLabel">MODEL</span><strong id="third">—</strong></div></div><div class="card"><div class="maphead"><b id="title">Accident map</b><span id="period"></span></div><div id="map"></div></div><div id="tileStatus" role="status"></div><div id="status"></div></section></main>
 <script>
 const DATA=__DATA__, CONFIG=__CONFIG__, $=id=>document.getElementById(id), fmt=x=>Number(x).toLocaleString(undefined,{maximumFractionDigits:2});
 let PERIODS={}, leafletMap=null, roadLayer=null, tileLayer=null, mapState=null, tileStyle=null, legend=null;
 function renderLeaflet(s,vals,a,p,colors,limit,error,reg,view){
  if(!window.L)throw Error('Map library could not load. Check internet access.');
- const element=$('map'), state=$('state').value, style=$('basemap').value;
- if(!leafletMap){if(element.data&&window.Plotly)Plotly.purge(element);element.innerHTML='';leafletMap=L.map(element,{preferCanvas:true,zoomControl:true});roadLayer=L.layerGroup().addTo(leafletMap);}
+ const element=$('map'), state=$('state').value, style='open-street-map';
+ if(!leafletMap){element.innerHTML='';leafletMap=L.map(element,{preferCanvas:true,zoomControl:true});roadLayer=L.layerGroup().addTo(leafletMap);}
  if(mapState!==state){leafletMap.setView([s.center[1],s.center[0]],state==='DE'?8:7);mapState=state;}
  const tileUrl='https://tile.openstreetmap.org/{z}/{x}/{y}.png';
  if(tileStyle!==style){if(tileLayer)leafletMap.removeLayer(tileLayer);$('tileStatus').textContent='';let loaded=0,failed=0;
@@ -338,7 +337,7 @@ const dates=$('view').value==='observed'?s.dates:Object.keys(r.pred).filter(d=>s
 options($('month'),Object.keys(PERIODS));for(const option of $('month').options){const ds=PERIODS[option.value],expected=$('aggregation').value==='yearly'?12:$('aggregation').value==='quarterly'?3:1;option.text=option.value+(expected>1?' · '+ds[0]+' to '+ds[ds.length-1]+(ds.length<expected?' (partial)':''):'')}
 if([...$('month').options].some(x=>x.value===old))$('month').value=old;
 $('model').disabled=$('view').value==='observed';$('view').querySelector('[value=error]').disabled=r.task!=='regression';if(r.task!=='regression'&&$('view').value==='error'){$('view').value='predicted';datesChanged();return}draw();}
-function draw(){try{if($('basemap').value==='network'&&!window.Plotly)throw Error('Plotly could not load. Check internet access or select OpenStreetMap.');
+function draw(){try{
 const s=DATA[$('state').value],r=s.runs[$('model').value]||{task:'none',pred:{},stats:{}},date=$('month').value,view=$('view').value,ds=PERIODS[date]||[],reg=r.task==='regression';
 const sumArrays=arrays=>arrays.reduce((acc,row)=>acc.map((x,i)=>x+row[i]),Array(s.roads.length).fill(0));
 const a=ds.length?Array(s.roads.length).fill(0):null;
@@ -349,19 +348,8 @@ const vals=a.map((x,i)=>view==='observed'?x:view==='error'?p[i]-x:p[i]),error=vi
 const reference=(reg&&p)?a.concat(p):vals,positive=reference.filter(x=>x>0).sort((x,y)=>x-y);
 let limit=positive.length?positive[Math.floor((positive.length-1)*.98)]:1;
 if(error){const sorted=vals.map(Math.abs).sort((x,y)=>x-y);limit=Math.max(.1,sorted[Math.floor((sorted.length-1)*.98)]);}limit=Math.max(limit,.01);
-const colors=error?['#2166ac','#67a9cf','#d1e5f0','#f7f7f7','#fddbc7','#ef8a62','#b2182b']:($('basemap').value==='carto-darkmatter'?['#475569','#22d3ee','#2dd4bf','#a3e635','#fde047','#fb923c','#fb4664']:['#cbd5e1','#7fcdbb','#41b6c4','#1d91c0','#fdae61','#f46d43','#a50026']);
-const useNetwork=$('basemap').value==='network';
-if(!useNetwork){renderLeaflet(s,vals,a,p,colors,limit,error,reg,view)}else{
-const bins=colors.map(()=>({lon:[],lat:[]}));vals.forEach((v,i)=>{let f=error?(v/limit+1)/2:Math.log1p(Math.max(0,v))/Math.log1p(limit);let k=Math.min(colors.length-1,Math.max(0,Math.floor(f*colors.length)));let b=bins[k],xy=s.xy[i];b.lon.push(xy[0][0],xy[1][0],null);b.lat.push(xy[0][1],xy[1][1],null)});
-if(leafletMap){leafletMap.remove();leafletMap=null;roadLayer=null;tileLayer=null;mapState=null;tileStyle=null;legend=null;$('map').innerHTML='';}
-$('tileStatus').textContent='';
-const traces=bins.map((b,i)=>({type:useNetwork?'scatter':'scattermap',mode:'lines',...(useNetwork?{x:b.lon,y:b.lat}:{lon:b.lon,lat:b.lat}),line:{color:colors[i],width:i===0&&!error?1.2:4},hoverinfo:'skip',showlegend:false}));
-const transformed=vals.map(x=>error?x:Math.log1p(Math.max(0,x))),scale=colors.map((c,i)=>[i/(colors.length-1),c]);
-const lon=s.xy.map(x=>(x[0][0]+x[1][0])/2),lat=s.xy.map(x=>(x[0][1]+x[1][1])/2);
-traces.push({type:useNetwork?'scatter':'scattermap',mode:'markers',...(useNetwork?{x:lon,y:lat}:{lon,lat}),marker:{size:4,color:transformed,colorscale:scale,cmin:error?-limit:0,cmax:error?limit:Math.log1p(limit),opacity:.35,colorbar:{thickness:12,title:{text:error?'Predicted − recorded':view==='observed'?'Recorded count':reg?'Predicted count':'Risk score'},tickvals:error?[-limit,0,limit]:[0,Math.log1p(limit/2),Math.log1p(limit)],ticktext:error?[-limit,0,limit].map(fmt):[0,limit/2,limit].map(fmt)}},customdata:s.roads.map((road,i)=>[...road,a[i],p?p[i]:null]),hovertemplate:'<b>Road %{customdata[0]} ↔ %{customdata[1]}</b><br>Recorded: %{customdata[2]}<br>Prediction: %{customdata[3]:.3f}<extra></extra>',showlegend:false});
-const spatialLayout=useNetwork?{xaxis:{title:'Longitude',constrain:'domain'},yaxis:{title:'Latitude',scaleanchor:'x',scaleratio:1.29},plot_bgcolor:'#f4f7f7',dragmode:'pan'}:{map:{style:$('basemap').value,center:{lon:s.center[0],lat:s.center[1]},zoom:$('state').value==='DE'?8:6.7}};
-Plotly.react('map',traces,{...spatialLayout,margin:useNetwork?{l:55,r:10,t:10,b:45}:{l:0,r:0,t:0,b:0},uirevision:$('state').value+'-'+$('basemap').value,paper_bgcolor:'white',font:{family:'system-ui'}},{responsive:true,displaylogo:false,scrollZoom:true,modeBarButtonsToRemove:['lasso2d','select2d']}).catch(e=>{$('status').textContent='Map rendering failed: '+e.message});
-}
+const colors=error?['#2166ac','#67a9cf','#d1e5f0','#f7f7f7','#fddbc7','#ef8a62','#b2182b']:['#cbd5e1','#7fcdbb','#41b6c4','#1d91c0','#fdae61','#f46d43','#a50026'];
+renderLeaflet(s,vals,a,p,colors,limit,error,reg,view);
 const stats=r.stats[date],overview=s.summary[date]||s.periodSummary[date];
 const predictedPeriod=view!=='observed'&&ds.length>1;
 $('total').textContent=fmt(predictedPeriod?stats.observed:overview.total);$('positive').textContent=fmt(predictedPeriod?stats.positive:overview.positive);
@@ -372,7 +360,7 @@ $('status').textContent=view==='observed'?(ds.includes('2022-10')&&$('state').va
 options($('state'),Object.keys(DATA));$('view').value=CONFIG.mode==='results'?'predicted':'observed';
 if(CONFIG.mode==='eda'){$('appTitle').textContent='Road Safety Explorer · Full-period EDA';$('appSubtitle').textContent='Observed accident patterns across all available months';}
 if(CONFIG.mode==='results'){$('appTitle').textContent='Road Safety Explorer · Test Results';$('appSubtitle').textContent='Exported predictions, recorded counts and regression errors';}
-$('state').onchange=stateChanged;$('model').onchange=datesChanged;$('view').onchange=datesChanged;$('month').onchange=draw;$('basemap').onchange=draw;$('aggregation').onchange=datesChanged;
+$('state').onchange=stateChanged;$('model').onchange=datesChanged;$('view').onchange=datesChanged;$('month').onchange=draw;$('aggregation').onchange=datesChanged;
 for(const [id,step]of [['prev',-1],['next',1]])$(id).onclick=()=>{const m=$('month');m.selectedIndex=Math.max(0,Math.min(m.options.length-1,m.selectedIndex+step));draw()};stateChanged();
 </script></body></html>'''
 
