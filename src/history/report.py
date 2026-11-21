@@ -361,7 +361,7 @@ def history_checkpoints(full_history_root, task):
 
 def plot_history_training_summary(full_history_root, task):
     metric = {"classification": "auroc", "regression": "mae"}[task]
-    fig, (loss_ax, valid_ax) = plt.subplots(1, 2, figsize=(10, 3.5))
+    fig, (loss_ax, valid_ax) = plt.subplots(1, 2, figsize=(8.5, 2.7))
     models = [("mlp", "MLP"), ("graphsage", "GraphSAGE"),
               ("gatedgcn", "GatedGCN"), ("graph_transformer", "Graph Transformer")]
     for (model, label), color, style in zip(models, ["#0072B2", "#D55E00", "#009E73", "#734B86"],
