@@ -128,15 +128,15 @@ def plot_osm_pipeline():
         """A rounded box centred on (x, y) with a bold title and a smaller detail line."""
         ax.add_patch(FancyBboxPatch((x - width / 2, y - 0.42), width, 0.84, fc=fills[kind], ec="#c3c2bc",
                                     lw=1.1, boxstyle="round,pad=0.02,rounding_size=0.12"))
-        ax.text(x, y + 0.14, title, ha="center", va="center", fontsize=10, weight="bold", color="#1f1f1d")
-        ax.text(x, y - 0.18, detail, ha="center", va="center", fontsize=8.6, color="#4a4945")
+        ax.text(x, y + 0.14, title, ha="center", va="center", fontsize=8.6, weight="bold", color="#1f1f1d")
+        ax.text(x, y - 0.18, detail, ha="center", va="center", fontsize=7.4, color="#4a4945")
 
     def down(x, y_from, y_to):
         ax.annotate("", xy=(x, y_to), xytext=(x, y_from), arrowprops=arrow)
 
     # Two sources merge into the matching step.
-    box(2.6, 9.55, 3.8, "OpenStreetMap snapshot", "Geofabrik extract, Delaware, 2026-10-18", "source")
-    box(7.4, 9.55, 3.8, "Benchmark road graph", "49,023 intersections, 116,196 directed roads", "source")
+    box(2.6, 9.55, 4.4, "OpenStreetMap snapshot", "Geofabrik extract, Delaware, 2026-10-18", "source")
+    box(7.4, 9.55, 4.4, "Benchmark road graph", "49,023 intersections, 116,196 directed roads", "source")
     ax.annotate("", xy=(4.2, 8.52), xytext=(2.6, 9.13), arrowprops=arrow)
     ax.annotate("", xy=(5.8, 8.52), xytext=(7.4, 9.13), arrowprops=arrow)
 
@@ -155,13 +155,13 @@ def plot_osm_pipeline():
 
     # The combined edge vector, then the two places it is used.
     box(5, y, 7.2, "Road input vector", "e_uv,t = [ e_base ‖ x_OSM ]", "model")
-    ax.annotate("", xy=(2.8, y - 1.33), xytext=(4.2, y - 0.42), arrowprops=arrow)
-    ax.annotate("", xy=(7.2, y - 1.33), xytext=(5.8, y - 0.42), arrowprops=arrow)
-    box(2.8, y - 1.75, 4.0, "1. Message passing (graph models)", "GraphSAGE, GatedGCN, Graph Transformer", "model")
-    box(7.2, y - 1.75, 4.0, "2. Road predictor (all models)", "s_uv,t = f( [ h_u ‖ h_v ‖ e_uv,t ] )", "model")
+    ax.annotate("", xy=(2.6, y - 1.33), xytext=(4.2, y - 0.42), arrowprops=arrow)
+    ax.annotate("", xy=(7.4, y - 1.33), xytext=(5.8, y - 0.42), arrowprops=arrow)
+    box(2.6, y - 1.75, 4.4, "1. Message passing (graph models)", "GraphSAGE, GatedGCN, Graph Transformer", "model")
+    box(7.4, y - 1.75, 4.4, "2. Road predictor (all models)", "s_uv,t = f( [ h_u ‖ h_v ‖ e_uv,t ] )", "model")
     ax.annotate("", xy=(5.2, y - 1.75), xytext=(4.8, y - 1.75), arrowprops=arrow)
-    ax.text(5, y - 1.5, "h_u, h_v", ha="center", fontsize=8.6, color="#4a4945")
+    ax.text(5, y - 1.2, "h_u, h_v", ha="center", va="center", fontsize=7.4, color="#4a4945")
 
     ax.text(5, 0.25, "Accident counts are never used to build, match or fill a feature.",
-            ha="center", fontsize=9, style="italic", color="#4a4945")
+            ha="center", fontsize=8, style="italic", color="#4a4945")
     return fig
