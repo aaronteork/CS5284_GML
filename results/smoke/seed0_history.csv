@@ -1,2 +1,0 @@
-epoch,train_loss,valid_auroc,valid_mae,epoch_seconds,elapsed_seconds,is_best,best_epoch
-1,0.5315789440539831,0.8475048151703307,,7.2315099239349365,7.232714699999633,True,1

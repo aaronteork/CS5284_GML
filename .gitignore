@@ -17,6 +17,10 @@
 
 # Original Drive exports stay local; only selected reports are versioned
 /results*.zip
+/train_historydata_colab.zip
+/train_historydata_colab.tmp.zip
+/reports/local_smoke_final/
+/reports/local_validation.json
 
 # Python and notebook caches
 __pycache__/

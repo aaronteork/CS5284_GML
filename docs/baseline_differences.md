@@ -111,7 +111,9 @@ All report 49,023 nodes, 65,252 physical-road targets, and 48/60/57 available
 train/validation/test months. The histories, metrics, curves and metadata were
 checked for completeness; full training was not independently rerun locally.
 No Maryland results are included yet. Prediction tensors and checkpoints are
-excluded from Git; training uses `notebooks/train_baseline.ipynb`.
+excluded from Git. The original two-model training notebook has been retired;
+use `notebooks/train_baseline+gated_gcn+graph_transformer.ipynb` for the current
+four-model baseline workflow.
 
 All saved DE runs identify source commit `526b30e` and set `git_dirty: true`.
 The exact uncommitted changes in that training checkout were not captured by

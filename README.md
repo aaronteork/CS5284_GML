@@ -1,203 +1,40 @@
-# CS5284_GML: merged baseline pipeline
+# CS5284: Road Accident Prediction with Graph Neural Networks
 
-Branch `feature/merged-baselines` combines `feature/baseline` (43025f1) and
-`baseline-fw` (4f926d1) in one `src/`, `data/`, `notebooks/` structure.
-It is a modified reproduction; see [differences](docs/baseline_differences.md).
+This repository contains our CS5284 group project on predicting monthly road-segment accident occurrence and counts. It combines a modified reproduction of ML4RoadSafety baselines with richer OpenStreetMap (OSM) road context, past accident history, and graph model comparisons.
 
-## Shared pipeline
+**Start with [Final_Report.ipynb](Final_Report.ipynb)** for the complete study: data exploration, preprocessing, methodology, experimental results, interactive risk visualisation, limitations, and references. The final report focuses on Delaware; the repository also includes Maryland baseline experiments.
 
-Every model receives coordinates, in/out-degree encodings, approximate
-betweenness, six weather variables, road-type flags, log road length, log AADT
-and missing-value indicators. Continuous weather/traffic statistics use training
-years only. Missing traffic years carry forward an earlier report, never a future
-one. Sparse feature duplicates are averaged while ignoring missing observations.
-Monthly and structural features are cached on disk and reused across experiments.
+## Models and experiments
 
-The learned models are a predictor-only MLP and the paper-style edge-aware
-GraphSAGE. Each is trained with and without the same fixed Node2Vec embeddings,
-for classification and regression, across seeds 0/1/2. Physical-road targets,
-corrected negative sampling, nonnegative regression clipping and full-network
-validation/test evaluation are retained. AUROC is averaged monthly using
-positive-road counts; MAE includes all available road-months, including zero-
-accident months. Pooled/balanced and top-risk metrics provide extra diagnostics.
+The final report compares four architectures across classification and count regression:
 
-## Accident-history extension
+- **MLP:** a predictor without message passing.
+- **GraphSAGE:** an edge-aware neighbourhood aggregation model.
+- **GatedGCN:** a graph network with gated node and edge updates.
+- **Graph Transformer:** sparse, edge-aware attention over connected roads.
 
-The four-model pipeline supports past-only physical-road accident history
-features through an archive-backed dataset adapter. The directed graph remains
-unchanged for message passing; labels and history are aligned to physical roads
-by combining both road directions. See [the integration notes](docs/accident_history.md)
-and [Colab guide](docs/colab_history_guide.md). The completed history-enabled
-reports are in [`results/history_v1/`](results/history_v1/README.md). The
-comparison uses committed original MLP/GraphSAGE results as contextual
-references where available; it does not require rerunning `history=none`.
-Other models without committed original results have no reference delta. These
-reports contain metrics and training records only; datasets, predictions, and
-trained checkpoints are kept outside GitHub.
+The code also implements **GCN** and **GAT** for additional baseline experiments. Model implementations are in [`src/model/`](src/model/).
 
-## Colab
+The main comparisons use baseline features, added OSM context, added accident history, and both additions together. Node2Vec embeddings provide structural inputs, with separate embedding ablations. Training and evaluation use chronological splits; accident-history features use only prior months. These are modified reproductions, so the original paper's scores are contextual references rather than directly comparable results. See [baseline differences](docs/baseline_differences.md).
 
-1. Push this branch to GitHub, then upload `notebooks/train_baseline.ipynb` to Colab.
-2. Select a GPU runtime and run cells in order. The clone cell targets
-   `feature/merged-baselines` and privately prompts for a GitHub token if needed.
-3. Keep `STATE = "DE"` to begin. Setup creates a Python 3.12 environment using
-   the single `requirements.txt`; no automatic unit tests are run.
-4. The embedding cell uses the GPU. Initial structural caching computes
-   approximate betweenness on CPU once and can take several minutes.
-5. Four training cells cover MLP/GraphSAGE and classification/regression. Each
-   runs both Node2Vec settings for 100 epochs and 3 seeds (6 runs per cell,
-   24 runs per state).
-   Change `STATE` to `MD` and rerun setup onward to train Maryland.
+## Data sources
 
-For the Delaware accident-history experiments, use
-[`notebooks/train_accident_history.ipynb`](notebooks/train_accident_history.ipynb)
-and follow the [history Colab guide](docs/colab_history_guide.md). The benchmark
-data and monthly history archives are not stored in this repository.
+- **ML4RoadSafety (Nippani et al., 2023):** road graphs, accident records, weather, road attributes, and available traffic estimates. See the [paper](https://arxiv.org/abs/2311.00164), [original project](https://github.com/VirtuosoResearch/ML4RoadSafety), and [Harvard Dataverse dataset](https://doi.org/10.7910/DVN/V71K5R).
+- **OpenStreetMap via Geofabrik:** additional road attributes, intersection controls, pedestrian/cycling context, nearby places, and road geometry. The final study uses the Delaware extract dated **18 October 2026** (`delaware-261018.osm.pbf`), as documented in the report. See the [Geofabrik Delaware download page](https://download.geofabrik.de/north-america/us/delaware.html). Data are credited to Geofabrik GmbH and OpenStreetMap contributors and distributed under the Open Database Licence.
+- **Accident-history features:** derived from the benchmark's monthly accident records for each physical road and neighbouring roads; they are not a separate external dataset. See [history construction and integration](docs/accident_history.md).
 
-`data/`, `weights/` and `results/` persist in
-`My Drive/cs5284_project/`. If Dataverse returns HTTP 403, download the ZIP from
-https://doi.org/10.7910/DVN/V71K5R and put it in that Drive `data/` folder.
-Existing folders do not need to be cleared. Re-running the same training run
-name overwrites its outputs; incomplete training is not resumed automatically.
-Completed-seed metrics are saved immediately to survive a later interruption.
+Raw datasets, generated feature archives, embeddings, prediction tensors, and trained checkpoints are excluded from Git. The notebooks and source code expect these inputs in local or Google Drive data folders.
 
-## Local commands
+## Repository guide
 
-### GatedGCN extension
+- [`Final_Report.ipynb`](Final_Report.ipynb): final narrative, analyses, results, and visualisations.
+- [`notebooks/`](notebooks/): exploratory analysis, feature preparation, training, and comparison workflows. Key entry points are [four-model baseline training](notebooks/train_baseline+gated_gcn+graph_transformer.ipynb), [accident-history training](notebooks/train_accident_history.ipynb), [OSM feature preparation](notebooks/osm_features_and_eda.ipynb), and [OSM comparisons](notebooks/osm_baseline_comparison.ipynb).
+- [`src/`](src/): shared data loading, models, training, evaluation, reporting, OSM and history pipelines, and risk-map visualisation.
+- [`results/`](results/): selected experiment metrics, configuration/provenance, and training histories/curves, including baseline, OSM, history, and combined-input runs. The final report identifies the runs used in its comparisons; the full-history results are in [`results/history_100_epochs/`](results/history_100_epochs/).
+- [`docs/`](docs/): supporting methodology and setup notes, including the [accident-history Colab guide](docs/colab_history_guide.md).
+- [`scripts/`](scripts/): notebook packaging, local validation, and experiment utilities.
+- [`tests/`](tests/): synthetic-data checks for preprocessing, evaluation, history features, and training outputs.
 
-`notebooks/train_baseline+gated_gcn.ipynb` is a clean copy of the baseline notebook with
-additional GatedGCN classification and regression cells. It runs all three models
-with/without Node2Vec: 12 configurations and 36 seed runs per state. To train only
-the new model, complete setup/embeddings and skip the MLP/GraphSAGE training cells.
-The original baseline notebook is unchanged. Push this code before using Colab;
-the new notebook defaults to `main`, so set `BRANCH` to the pushed branch if different.
+For running experiments, install [`requirements.txt`](requirements.txt) and follow the relevant notebook's setup and data instructions. The final report is the main entry point for understanding the completed project.
 
-Models live in `src/model/mlp/`, `src/model/graphsage/` and
-`src/model/gatedgcn/`. The shared endpoint/road predictor lives in
-`src/model/common.py`; `src/model/models.py` retains the factory and existing
-imports. Moving the baselines preserves their parameter names and checkpoint
-compatibility.
-
-GatedGCN projects node and road features to the hidden width, then jointly updates
-node and edge states with feature-wise sigmoid gates normalised over incoming
-edges, batch normalisation, ReLU and residual connections. It uses the existing
-directed graph without adding self-loops, the shared road predictor, and the same
-losses, sampling and checkpoint selection. This follows the residual GatedGCN
-formulation in [Benchmarking GNNs](https://github.com/graphdeeplearning/benchmarking-gnns/blob/master/layers/gated_gcn_layer.py),
-implemented with native PyTorch. Hidden width/layer defaults remain 256/2;
-parameter counts differ between architectures. Inspection outputs are deferred.
-The original no-history GatedGCN benchmark is not included in the root-level
-baseline reports; history-enabled results are documented under
-`results/history_v1/`.
-
-```bash
-python -m src.model.train --state DE --model gatedgcn --task classification
-python -m src.model.train --state DE --model gatedgcn --task regression --without-node2vec
-```
-
-Outputs use separate `<state>_gatedgcn_<task>_<n2v|no_n2v>` run directories.
-
-### Graph Transformer extension
-
-`notebooks/train_baseline+gated_gcn+graph_transformer.ipynb` copies the GatedGCN
-notebook and adds Graph Transformer classification/regression cells. All four
-models with both tasks, both Node2Vec settings and three seeds total 48 training
-runs per state. Complete setup/embeddings and skip earlier model training cells
-to run only the 12 new Graph Transformer seed runs. Set `BRANCH` to the pushed
-branch containing the implementation before running Colab.
-
-`src/model/graph_transformer/` contains a native-PyTorch sparse edge-aware Graph
-Transformer. Defaults are two blocks, width 256, four heads (64 channels/head),
-and zero dropout. Each block applies pre-LayerNorm multi-head attention and a
-256 -> 512 -> 256 GELU feed-forward network, each with a residual connection.
-For each incoming road j -> i, its projected attributes multiply the destination
-query and source key elementwise before summation/scaling. Softmax is over
-incoming sources independently for each destination/head. Only existing edges
-receive messages; no dense node-pair attention or additional self-loops are used.
-
-This adapts the Week 09 Lab 03 edge-modulated attention score while retaining
-the shared per-road predictor and existing structural inputs/Node2Vec ablation.
-It does not add Laplacian PE or update hidden edge states. Hidden widths must be
-divisible by `--num-heads`; heads are configurable and saved in run configuration.
-No new dependencies or inspection outputs are added. The original no-history
-Graph Transformer benchmark is not included in the root-level baseline reports;
-history-enabled results are documented under `results/history_v1/`.
-
-```bash
-python -m src.model.train --state DE --model graph_transformer --task classification --num-heads 4
-python -m src.model.train --state DE --model graph_transformer --task regression --without-node2vec
-```
-
-Outputs use separate `<state>_graph_transformer_<task>_<n2v|no_n2v>` run directories.
-
-Use Python 3.10-3.12 and install `requirements.txt` in a virtual environment:
-
-```bash
-python -m pip install -r requirements.txt
-python -m src.data.node2vec --state DE
-python -m src.model.train --state DE --model mlp --task classification --without-node2vec
-python -m src.model.train --state DE --model graphsage --task classification
-```
-
-The embedding trainer uses CUDA when available, otherwise CPU. It is adapted
-from baseline-fw's custom PyTorch skip-gram/negative-sampling implementation,
-with 20-step walks, 10 walks per node, 128 dimensions and one negative per pair.
-This is different from the original karateclub/gensim embedding configuration.
-Generation metadata identifies the implementation and parameters; caches from
-another backend are rejected rather than silently reused. New embeddings live
-under `data/embeddings/node2vec_merged/`; older original embeddings are preserved.
-
-## Tests
-
-Run the CPU regression tests locally after installing the requirements:
-
-```bash
-python -m unittest discover -s tests -v
-```
-
-Tests focus on data, evaluation and training-output pipelines rather than model
-architecture internals. The suite covers training-only weather normalization, missing-value indicators,
-traffic carry-forward without future reports, physical-road label aggregation,
-sparse duplicate averaging, cache invalidation, embedding provenance and reverse-edge
-deduplication, and identical shared inputs in the Node2Vec ablation. Evaluation
-checks cover monthly AUROC weighting, accident-free months, regression clipping
-and geographic prediction exports. Tests use tiny synthetic data, with no dataset
-download or full training run. Training-history tests also verify best-checkpoint
-selection, curve generation and preservation of history after interruption.
-Colab does not run them automatically.
-
-## Outputs
-
-- `data/<state>/cache/`: weather, coordinates, degree and betweenness caches.
-- `data/embeddings/node2vec_merged/<state>_128.npy` and `.json`: embeddings/provenance.
-- `weights/<state>_<model>_<task>_<n2v|no_n2v>/seed<k>.pt`: best validation checkpoint.
-- `results/<run>/seed<k>_metrics.json`: each completed seed's metrics/configuration.
-- `results/<run>/seed<k>_history.csv`: epoch, training loss, validation AUROC/MAE,
-  epoch/cumulative seconds, best-checkpoint flag and best epoch. Appended after
-  every completed epoch; validation fields are blank on unevaluated epochs.
-- `results/<run>/seed<k>_history.png`: separate training-loss and validation-metric
-  panels marking the best epoch; refreshed at the first epoch and validation checks.
-- `results/<run>/run_metadata.json`: configuration, data coverage, data splits,
-  embedding metadata, package versions, Git commit and working-tree dirty flag,
-  saved before training. Provenance also accompanies final metrics.
-- `results/<run>/metrics.json`: mean/std and completion status for all seeds.
-- `results/<run>/seed<k>_test_predictions.pt`: months, predictions, actual counts,
-  road endpoint indices, node longitude/latitude and target-unit metadata.
-
-Validation runs every 5 epochs and at the final epoch by default. The best
-evaluated epoch is selected separately for each seed using validation AUROC
-(classification) or MAE (regression); only its checkpoint is evaluated on test.
-Training loss uses sampled roads, whereas validation covers the selected
-evaluation population, so their magnitudes are not directly comparable. Rerunning
-a seed resets its history and curve, along with its usual training outputs.
-
-Completed Delaware reports are included under `results/` for all eight model,
-task and Node2Vec configurations, each with seeds 0/1/2 and 100 epochs. They
-include metrics, provenance and training histories/curves imported from the Drive
-export. These modified-reproduction results are not directly comparable to the
-paper's scores; see the differences document.
-
-Git tracks only the selected JSON, CSV and PNG reports in `results/`. Data,
-prediction tensors, checkpoints, environments, caches and original exports stay
-outside Git. Use `notebooks/train_baseline.ipynb` for training. The old feature
-branch remains available for comparison.
+For the interactive accident map, run the **Spatial exploration of recorded accidents** cell in Section 3.1.5 of the final report. It colours road segments by recorded counts, predictions, or prediction errors, with monthly, quarterly, and yearly views. The cell exports `results/visualizations/road_safety_full_eda.html`. Recorded counts require the benchmark data; prediction layers additionally require `seed*_test_predictions.pt` exports. The basemap needs an internet connection.
