@@ -117,7 +117,7 @@ def plot_osm_pipeline():
     the numbers are the Delaware values reported in §5.1.
     Returns the matplotlib figure.
     """
-    fig, ax = plt.subplots(figsize=(10, 7.2), layout="constrained")
+    fig, ax = plt.subplots(figsize=(7.0, 5.0), layout="constrained")
     ax.set_xlim(0, 10)
     ax.set_ylim(0, 10.2)
     ax.axis("off")

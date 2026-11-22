@@ -359,14 +359,21 @@ def traffic_accident_association(data, training_only=True):
     return pd.DataFrame(rows, columns=["State", "Year", "road", "AADT", "Mean monthly accidents"])
 
 
-def plot_traffic_risk(observations):
+def plot_traffic_risk(observations, ax=None):
     states = list(observations.State.unique())
     if not states:
         fig, ax = plt.subplots(); ax.text(.5, .5, "No AADT observations", ha="center"); ax.axis("off")
         return fig, pd.DataFrame()
-    fig, axes = plt.subplots(1, len(states), figsize=(5.4 * len(states), 3.4), squeeze=False, layout="constrained")
+    if ax is None:
+        fig, axes = plt.subplots(1, len(states), figsize=(5.4 * len(states), 3.4),
+                                 squeeze=False, layout="constrained")
+        plot_axes = axes.ravel()
+    else:
+        if len(states) != 1:
+            raise ValueError("An explicit axis supports one state at a time")
+        fig, plot_axes = ax.figure, [ax]
     stats = []
-    for ax, state in zip(axes.ravel(), states):
+    for ax, state in zip(plot_axes, states):
         frame = observations[observations.State == state].copy()
         frame["group"] = pd.qcut(frame.AADT, 5, duplicates="drop")
         grouped = frame.groupby("group", observed=True)[["AADT", "Mean monthly accidents"]].mean()
@@ -388,17 +395,27 @@ def _risk(d, training_only=True):
     return counts.groupby("road").sum().reindex(d.roads, fill_value=0) / len(months)
 
 
-def _axes(data, height=3.4):
+def _axes(data, height=3.4, ax=None):
+    if ax is not None:
+        if len(data) != 1:
+            raise ValueError("An explicit axis supports one state at a time")
+        return ax.figure, [ax]
     fig, axes = plt.subplots(1, len(data), figsize=(5.4 * len(data), height),
                              squeeze=False, layout="constrained")
     return fig, axes.ravel()
 
 
-def plot_monthly_accidents(data):
+def plot_monthly_accidents(data, ax=None):
     """Monthly totals with chronological split boundaries."""
-    fig, axes = plt.subplots(len(data), 1, figsize=(10, 2.5 * len(data)),
-                             squeeze=False, layout="constrained", sharex=True)
-    for ax, (state, d) in zip(axes.ravel(), data.items()):
+    if ax is None:
+        fig, axes = plt.subplots(len(data), 1, figsize=(10, 2.5 * len(data)),
+                                 squeeze=False, layout="constrained", sharex=True)
+        plot_axes = axes.ravel()
+    else:
+        if len(data) != 1:
+            raise ValueError("An explicit axis supports one state at a time")
+        fig, plot_axes = ax.figure, [ax]
+    for ax, (state, d) in zip(plot_axes, data.items()):
         totals = monthly_accidents(d)
         ax.plot(totals.index, totals.values)
         val, test = (pd.Timestamp(SPLITS[state][s][0], 1, 1) for s in ("validation", "test"))
@@ -412,8 +429,8 @@ def plot_monthly_accidents(data):
     return fig
 
 
-def plot_seasonality(data):
-    fig, axes = _axes(data)
+def plot_seasonality(data, ax=None):
+    fig, axes = _axes(data, ax=ax)
     for ax, (state, d) in zip(axes, data.items()):
         totals = monthly_accidents(d)
         seasonal = totals.groupby(totals.index.month).mean()
@@ -448,7 +465,7 @@ def plot_concentration(data):
 
 def plot_risk_profile(data):
     """Compact report figure: count sparsity and retrospective concentration."""
-    fig, (left, right) = plt.subplots(1, 2, figsize=(10, 3.4), layout="constrained")
+    fig, (left, right) = plt.subplots(1, 2, figsize=(7.8, 2.65), layout="constrained")
     table = accident_distribution(data)
     labels = ["0", "1", "2", "3", "4", "5+"]
     width = .8 / len(data)
@@ -489,8 +506,8 @@ def plot_neighbour_risk(data, sample=5000):
     return fig, pd.Series(correlations, name="Training-period correlation")
 
 
-def plot_length_risk(data, training_only=True):
-    fig, axes = _axes(data)
+def plot_length_risk(data, training_only=True, ax=None):
+    fig, axes = _axes(data, ax=ax)
     for ax, (state, d) in zip(axes, data.items()):
         lengths = _feature_series(d.edge_features["length"], d.n_nodes, physical=True)
         summary = pd.DataFrame({"length": lengths.reindex(d.roads), "accidents": _risk(d, training_only=training_only)}).dropna()
@@ -502,8 +519,8 @@ def plot_length_risk(data, training_only=True):
     return fig
 
 
-def plot_road_type_risk(data, min_roads=100, training_only=True):
-    fig, axes = _axes(data, height=4.5)
+def plot_road_type_risk(data, min_roads=100, training_only=True, ax=None):
+    fig, axes = _axes(data, height=4.5, ax=ax)
     for ax, (state, d) in zip(axes, data.items()):
         categories = {}
         for name, tensor in d.edge_features.items():
@@ -625,7 +642,7 @@ def graph_laplacian_eda(data):
             if state in ('DE', 'MD') and not (
                     np.nanmedian(longitude) < -70 and 35 < np.nanmedian(latitude) < 45):
                 raise ValueError(f'{state}: unexpected coordinate order')
-            fig, ax = plt.subplots(figsize=(6, 6), constrained_layout=True)
+            fig, ax = plt.subplots(figsize=(3.5, 3.5), constrained_layout=True)
             limit = np.max(np.abs(vector))
             points = ax.scatter(longitude, latitude, c=vector, s=2, cmap='coolwarm',
                                 vmin=-limit, vmax=limit, rasterized=True)

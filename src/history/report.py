@@ -171,7 +171,7 @@ def history_window_correlations(train_features):
 
 def plot_history_profile(train_features, history_feature_profile, correlation):
     correlation_labels = correlation.columns
-    fig, axes = plt.subplots(1, 3, figsize=(15, 5), constrained_layout=True)
+    fig, axes = plt.subplots(1, 3, figsize=(14.0, 4.4), constrained_layout=True)
     y = np.arange(len(history_feature_profile))
     axes[0].barh(y, history_feature_profile["Zero (%)"], color="#d98958")
     axes[0].set_yticks(y, history_feature_profile["Feature"])
@@ -200,7 +200,7 @@ def plot_history_profile(train_features, history_feature_profile, correlation):
         for col in range(len(correlation_labels)):
             axes[2].text(col, row, f"{correlation.iloc[row, col]:.2f}",
                          ha="center", va="center", color="black", fontsize=9)
-    axes[2].set_title("Overlapping-window Spearman correlation")
+    axes[2].set_title("Window overlap (Spearman rho)")
     fig.colorbar(image, ax=axes[2], shrink=0.78, label="Spearman rho")
     fig.suptitle("History-feature EDA on Delaware training data")
     return fig
@@ -256,7 +256,7 @@ def history_association_tables(counts, neighbours):
 
 def plot_history_associations(history_risk, neighbor_risk):
     history_labels = history_risk.iloc[:, 0]
-    fig, axes = plt.subplots(1, 2, figsize=(12, 4.8), constrained_layout=True)
+    fig, axes = plt.subplots(1, 2, figsize=(7.6, 2.6), constrained_layout=True)
     axes[0].bar(history_labels, history_risk["Next-month incidence (%)"], color="#3977a8")
     axes[0].set_xlabel("Accidents on the road in prior 3 months")
     axes[0].set_ylabel("Next-month incidence (%)")
@@ -359,9 +359,16 @@ def history_checkpoints(full_history_root, task):
     return pd.DataFrame(checkpoints)
 
 
-def plot_history_training_summary(full_history_root, task):
+def plot_history_training_summary(full_history_root, task, axes=None, show_legend=True):
     metric = {"classification": "auroc", "regression": "mae"}[task]
-    fig, (loss_ax, valid_ax) = plt.subplots(1, 2, figsize=(8.5, 2.7))
+    if axes is None:
+        fig, axes = plt.subplots(1, 2, figsize=(5.9, 1.95))
+    else:
+        axes = np.asarray(axes, dtype=object).ravel()
+        if len(axes) != 2:
+            raise ValueError("Two axes are required")
+        fig = axes[0].figure
+    loss_ax, valid_ax = axes
     models = [("mlp", "MLP"), ("graphsage", "GraphSAGE"),
               ("gatedgcn", "GatedGCN"), ("graph_transformer", "Graph Transformer")]
     for (model, label), color, style in zip(models, ["#0072B2", "#D55E00", "#009E73", "#734B86"],
@@ -379,6 +386,7 @@ def plot_history_training_summary(full_history_root, task):
     for ax in (loss_ax, valid_ax):
         ax.set_xlabel("Epoch")
         ax.grid(alpha=0.2)
-    fig.legend(*loss_ax.get_legend_handles_labels(), loc="lower center", ncol=4, frameon=False)
-    fig.tight_layout(rect=(0, 0.1, 1, 1))
+    if show_legend:
+        fig.legend(*loss_ax.get_legend_handles_labels(), loc="lower center", ncol=4, frameon=False)
+        fig.tight_layout(rect=(0, 0.1, 1, 1))
     return fig
