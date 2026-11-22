@@ -650,6 +650,7 @@ def graph_laplacian_eda(data):
             ax.set(title=f'{state}: second Laplacian eigenvector',
                    xlabel='Longitude', ylabel='Latitude')
             ax.set_aspect('equal', adjustable='box')
+            ax.xaxis.set_major_locator(plt.MaxNLocator(3))
             figures.append(fig)
     return pd.DataFrame(rows).set_index('State'), figures
 
